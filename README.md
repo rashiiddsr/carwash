@@ -9,7 +9,8 @@ Aplikasi Point of Sale (POS) untuk bisnis cuci mobil dengan fitur manajemen tran
 - **State Management**: TanStack React Query
 - **Routing**: React Router v6
 - **Form**: React Hook Form + Zod
-- **Backend**: Supabase (Database + Edge Functions)
+- **Backend**: Node.js + Express
+- **Database**: MySQL
 - **Auth**: JWT dengan bcrypt
 
 ## Fitur
@@ -54,15 +55,36 @@ npm install
 
 ### 3. Environment Variables
 
-File `.env` sudah dikonfigurasi otomatis dengan Supabase credentials.
+File `.env` di root berisi konfigurasi frontend untuk mengarah ke API.
+
+Contoh isi `.env`:
+```
+VITE_API_BASE_URL=http://localhost:4000
+```
+
+File `api/.env` berisi konfigurasi backend:
+```
+PORT=4000
+DB_HOST=localhost
+DB_PORT=3306
+DB_NAME=roya2064_pos
+DB_USER=roya2064_rgi_nexaproc
+DB_PASSWORD=roya2064_rgi_nexaproc
+CORS_ORIGIN=https://localhost:5173
+JWT_SECRET=change-this-secret
+JWT_EXPIRES_IN=7d
+```
 
 ### 4. Database Setup
 
-Database dan seed data sudah otomatis disetup di Supabase dengan:
+Database MySQL menggunakan schema di `database/schema.sql` dengan:
 - Tabel: users, categories, transactions
-- Enum types: user_role, transaction_status
-- Row Level Security policies
-- Default data dan akun testing
+- Enum types: role dan status
+
+Import schema ke MySQL:
+```bash
+mysql -u <user> -p < database/schema.sql
+```
 
 ### 5. Run Development Server
 
@@ -72,7 +94,15 @@ npm run dev
 
 Aplikasi akan berjalan di `http://localhost:5173`
 
-### 6. Build Production
+### 6. Jalankan API Backend
+
+```bash
+cd api
+npm install
+npm run dev
+```
+
+### 7. Build Production
 
 ```bash
 npm run build
@@ -130,13 +160,13 @@ Transaksi mengikuti alur status:
 3. **FINISHING** - Proses finishing/packing
 4. **DONE** - Selesai
 
-## API Endpoints (Edge Functions)
+## API Endpoints (REST)
 
 ### Auth
-- `POST /functions/v1/auth/login` - Login dengan phone & password
-- `GET /functions/v1/auth/verify` - Verify JWT token
+- `POST /auth/login` - Login dengan phone & password
+- `GET /auth/verify` - Verify JWT token
 
-### Frontend API (via Supabase Client)
+### Frontend API (via REST API)
 - Users CRUD (admin only)
 - Categories CRUD (admin only)
 - Transactions CRUD dengan filtering
@@ -146,7 +176,6 @@ Transaksi mengikuti alur status:
 
 - JWT-based authentication
 - Bcrypt password hashing
-- Row Level Security (RLS) di Supabase
 - Role-based access control
 - Protected routes di frontend
 
@@ -173,9 +202,8 @@ src/
 ├── hooks/           # Custom hooks
 │   └── useToast.tsx
 ├── lib/             # Utilities & API
-│   ├── api.ts       # Supabase API calls
+│   ├── api.ts       # REST API calls
 │   ├── auth.ts      # Auth utilities
-│   ├── supabase.ts  # Supabase client
 │   └── utils.ts     # Helper functions
 ├── pages/           # Page components
 │   ├── admin/       # Admin pages
@@ -187,10 +215,11 @@ src/
 │   └── index.ts
 ├── App.tsx          # Main app dengan routing
 └── main.tsx         # Entry point
+api/
+└── index.js         # Express API (MySQL)
 
-supabase/
-└── functions/       # Edge functions
-    └── auth/        # Auth function
+database/
+└── schema.sql       # MySQL schema
 ```
 
 ## Best Practices
