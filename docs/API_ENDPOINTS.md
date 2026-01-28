@@ -2,8 +2,7 @@
 
 ## Base URLs
 
-- **Edge Functions**: `{SUPABASE_URL}/functions/v1`
-- **Supabase API**: Via Supabase Client SDK
+- **REST API**: `{API_BASE_URL}` (contoh: `http://localhost:4000`)
 
 ## Authentication
 
@@ -14,7 +13,7 @@ Authorization: Bearer {token}
 
 ---
 
-## Auth Endpoints (Edge Functions)
+## Auth Endpoints
 
 ### POST /auth/login
 Login dengan phone number dan password.
@@ -82,11 +81,11 @@ Authorization: Bearer {token}
 
 ---
 
-## Users API (Supabase Client)
+## Users API (REST)
 
 ### GET Users by Role
-```typescript
-api.users.getAll(role?: 'ADMIN' | 'KARYAWAN' | 'CUSTOMER')
+```
+GET /users?role=ADMIN
 ```
 
 **Access**: Admin only
@@ -108,13 +107,8 @@ api.users.getAll(role?: 'ADMIN' | 'KARYAWAN' | 'CUSTOMER')
 ---
 
 ### POST Create User
-```typescript
-api.users.create({
-  name: string,
-  phone: string,
-  password: string,
-  role: string
-})
+```
+POST /users
 ```
 
 **Access**: Admin only
@@ -132,11 +126,8 @@ api.users.create({
 ---
 
 ### PUT Update User
-```typescript
-api.users.update(id: string, {
-  name: string,
-  phone: string
-})
+```
+PUT /users/{id}
 ```
 
 **Access**: Admin only
@@ -144,8 +135,8 @@ api.users.update(id: string, {
 ---
 
 ### PUT Reset Password
-```typescript
-api.users.resetPassword(id: string, newPassword: string)
+```
+PUT /users/{id}/reset-password
 ```
 
 **Access**: Admin only
@@ -153,8 +144,8 @@ api.users.resetPassword(id: string, newPassword: string)
 ---
 
 ### DELETE User
-```typescript
-api.users.delete(id: string)
+```
+DELETE /users/{id}
 ```
 
 **Access**: Admin only
@@ -165,8 +156,8 @@ api.users.delete(id: string)
 ## Categories API
 
 ### GET All Categories
-```typescript
-api.categories.getAll(activeOnly?: boolean)
+```
+GET /categories?activeOnly=true
 ```
 
 **Access**: All authenticated users
@@ -188,11 +179,8 @@ api.categories.getAll(activeOnly?: boolean)
 ---
 
 ### POST Create Category
-```typescript
-api.categories.create({
-  name: string,
-  price: number
-})
+```
+POST /categories
 ```
 
 **Access**: Admin only
@@ -200,11 +188,8 @@ api.categories.create({
 ---
 
 ### PUT Update Category
-```typescript
-api.categories.update(id: string, {
-  name: string,
-  price: number
-})
+```
+PUT /categories/{id}
 ```
 
 **Access**: Admin only
@@ -212,8 +197,8 @@ api.categories.update(id: string, {
 ---
 
 ### PATCH Toggle Active Status
-```typescript
-api.categories.toggleActive(id: string, isActive: boolean)
+```
+PATCH /categories/{id}/status
 ```
 
 **Access**: Admin only
@@ -221,8 +206,8 @@ api.categories.toggleActive(id: string, isActive: boolean)
 ---
 
 ### DELETE Category
-```typescript
-api.categories.delete(id: string)
+```
+DELETE /categories/{id}
 ```
 
 **Access**: Admin only
@@ -233,16 +218,8 @@ api.categories.delete(id: string)
 ## Transactions API
 
 ### GET All Transactions
-```typescript
-api.transactions.getAll(filters?: {
-  date?: string,              // 'YYYY-MM-DD'
-  startDate?: string,         // 'YYYY-MM-DD'
-  endDate?: string,           // 'YYYY-MM-DD'
-  status?: string,            // 'QUEUED' | 'WASHING' | 'FINISHING' | 'DONE'
-  categoryId?: string,
-  employeeId?: string,
-  customerId?: string
-})
+```
+GET /transactions?date=YYYY-MM-DD&status=QUEUED&categoryId=uuid
 ```
 
 **Access**:
@@ -288,8 +265,8 @@ api.transactions.getAll(filters?: {
 ---
 
 ### GET Transaction by ID
-```typescript
-api.transactions.getById(id: string)
+```
+GET /transactions/{id}
 ```
 
 **Access**: Based on role (same as getAll)
@@ -297,17 +274,8 @@ api.transactions.getById(id: string)
 ---
 
 ### POST Create Transaction
-```typescript
-api.transactions.create({
-  trx_date: string,          // 'YYYY-MM-DD', default today
-  customer_id?: string,      // nullable
-  category_id: string,       // required
-  car_brand: string,         // required
-  plate_number: string,      // required
-  employee_id: string,       // required
-  price: number,             // snapshot dari category
-  notes?: string             // optional
-})
+```
+POST /transactions
 ```
 
 **Access**: Admin only
@@ -329,16 +297,8 @@ api.transactions.create({
 ---
 
 ### PUT Update Transaction
-```typescript
-api.transactions.update(id: string, {
-  customer_id?: string,
-  category_id?: string,      // jika berubah, price akan diupdate
-  car_brand?: string,
-  plate_number?: string,
-  employee_id?: string,
-  price?: number,
-  notes?: string
-})
+```
+PUT /transactions/{id}
 ```
 
 **Access**: Admin only
@@ -346,8 +306,8 @@ api.transactions.update(id: string, {
 ---
 
 ### PATCH Update Status
-```typescript
-api.transactions.updateStatus(id: string, status: string)
+```
+PATCH /transactions/{id}/status
 ```
 
 **Access**:
@@ -359,8 +319,8 @@ api.transactions.updateStatus(id: string, status: string)
 ---
 
 ### DELETE Transaction
-```typescript
-api.transactions.delete(id: string)
+```
+DELETE /transactions/{id}
 ```
 
 **Access**: Admin only
@@ -403,14 +363,6 @@ api.transactions.delete(id: string)
   "message": "Internal server error"
 }
 ```
-
----
-
-## Rate Limiting
-
-Supabase applies standard rate limiting:
-- Anonymous: 50 requests/second
-- Authenticated: 200 requests/second
 
 ---
 

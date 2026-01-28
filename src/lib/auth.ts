@@ -2,16 +2,20 @@ import { LoginResponse, User } from '../types';
 
 const AUTH_TOKEN_KEY = 'royal_carwash_token';
 const AUTH_USER_KEY = 'royal_carwash_user';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
+if (!API_BASE_URL) {
+  throw new Error('Missing API base URL');
+}
 
 export const authApi = {
   async login(phone: string, password: string): Promise<LoginResponse> {
     const response = await fetch(
-      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/auth/login`,
+      new URL('/auth/login', API_BASE_URL),
       {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
         },
         body: JSON.stringify({ phone, password }),
       }
@@ -28,7 +32,7 @@ export const authApi = {
 
   async verifyToken(token: string): Promise<{ user: User }> {
     const response = await fetch(
-      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/auth/verify`,
+      new URL('/auth/verify', API_BASE_URL),
       {
         method: 'GET',
         headers: {
