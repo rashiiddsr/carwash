@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -12,6 +12,7 @@ import { Transaction } from '../../types';
 
 const transactionSchema = z.object({
   customer_id: z.string().optional().nullable(),
+  vehicle_id: z.string().optional().nullable(),
   category_id: z.string().min(1, 'Kategori wajib dipilih'),
   car_brand: z.string().min(1, 'Merk mobil wajib diisi'),
   plate_number: z.string().min(1, 'Nomor polisi wajib diisi'),
@@ -81,6 +82,8 @@ export function KasirHarian() {
     register,
     handleSubmit,
     reset,
+    getValues,
+    setValue,
     watch,
     formState: { errors },
   } = useForm<TransactionFormData>({
@@ -88,7 +91,61 @@ export function KasirHarian() {
   });
 
   const selectedCategoryId = watch('category_id');
+  const selectedCustomerId = watch('customer_id');
+  const selectedVehicleId = watch('vehicle_id');
   const selectedCategory = categories.find((c) => c.id === selectedCategoryId);
+  const previousCustomerId = useRef<string | null>(null);
+
+  const { data: vehicles = [], isLoading: vehiclesLoading } = useQuery({
+    queryKey: ['vehicles', selectedCustomerId],
+    queryFn: () => api.vehicles.getAll({ customerId: selectedCustomerId || undefined }),
+    enabled: Boolean(selectedCustomerId),
+  });
+
+  useEffect(() => {
+    const normalizedCustomerId = selectedCustomerId || '';
+
+    if (previousCustomerId.current === null) {
+      previousCustomerId.current = normalizedCustomerId;
+      return;
+    }
+
+    if (previousCustomerId.current !== normalizedCustomerId) {
+      setValue('vehicle_id', '');
+      setValue('car_brand', '');
+      setValue('plate_number', '');
+      previousCustomerId.current = normalizedCustomerId;
+    }
+  }, [selectedCustomerId, setValue]);
+
+  useEffect(() => {
+    if (!selectedVehicleId) {
+      return;
+    }
+
+    const selectedVehicle = vehicles.find((vehicle) => vehicle.id === selectedVehicleId);
+    if (selectedVehicle) {
+      setValue('car_brand', selectedVehicle.car_brand);
+      setValue('plate_number', selectedVehicle.plate_number);
+    }
+  }, [selectedVehicleId, setValue, vehicles]);
+
+  useEffect(() => {
+    if (!selectedCustomerId || selectedVehicleId || vehicles.length === 0) {
+      return;
+    }
+
+    const currentCarBrand = getValues('car_brand');
+    const currentPlateNumber = getValues('plate_number');
+    const matchedVehicle = vehicles.find(
+      (vehicle) =>
+        vehicle.car_brand === currentCarBrand && vehicle.plate_number === currentPlateNumber
+    );
+
+    if (matchedVehicle) {
+      setValue('vehicle_id', matchedVehicle.id);
+    }
+  }, [getValues, selectedCustomerId, selectedVehicleId, setValue, vehicles]);
 
   const createMutation = useMutation({
     mutationFn: (data: TransactionFormData) => {
@@ -164,8 +221,10 @@ export function KasirHarian() {
   });
 
   const handleAdd = () => {
+    previousCustomerId.current = '';
     reset({
       customer_id: '',
+      vehicle_id: '',
       category_id: '',
       car_brand: '',
       plate_number: '',
@@ -177,8 +236,10 @@ export function KasirHarian() {
 
   const handleEdit = (transaction: Transaction) => {
     setSelectedTransaction(transaction);
+    previousCustomerId.current = transaction.customer_id || '';
     reset({
       customer_id: transaction.customer_id || '',
+      vehicle_id: '',
       category_id: transaction.category_id,
       car_brand: transaction.car_brand,
       plate_number: transaction.plate_number,
@@ -431,6 +492,32 @@ export function KasirHarian() {
             </select>
           </div>
 
+          {selectedCustomerId && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Kendaraan Member <span className="text-red-500">*</span>
+              </label>
+              <select
+                {...register('vehicle_id')}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+              >
+                <option value="">-- Pilih Kendaraan --</option>
+                {vehicles.map((vehicle) => (
+                  <option key={vehicle.id} value={vehicle.id}>
+                    {vehicle.car_brand} - {vehicle.plate_number}
+                  </option>
+                ))}
+              </select>
+              {vehiclesLoading ? (
+                <p className="text-xs text-gray-500 mt-1">Memuat kendaraan...</p>
+              ) : vehicles.length === 0 ? (
+                <p className="text-xs text-gray-500 mt-1">
+                  Member ini belum memiliki kendaraan. Tambahkan di menu daftar kendaraan.
+                </p>
+              ) : null}
+            </div>
+          )}
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Kategori <span className="text-red-500">*</span>
@@ -464,6 +551,7 @@ export function KasirHarian() {
               {...register('car_brand')}
               type="text"
               placeholder="Contoh: Toyota Avanza"
+              readOnly={Boolean(selectedCustomerId && vehicles.length > 0)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
             />
             {errors.car_brand && (
@@ -479,6 +567,7 @@ export function KasirHarian() {
               {...register('plate_number')}
               type="text"
               placeholder="Contoh: B 1234 XYZ"
+              readOnly={Boolean(selectedCustomerId && vehicles.length > 0)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
             />
             {errors.plate_number && (
@@ -562,6 +651,32 @@ export function KasirHarian() {
             </select>
           </div>
 
+          {selectedCustomerId && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Kendaraan Member <span className="text-red-500">*</span>
+              </label>
+              <select
+                {...register('vehicle_id')}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+              >
+                <option value="">-- Pilih Kendaraan --</option>
+                {vehicles.map((vehicle) => (
+                  <option key={vehicle.id} value={vehicle.id}>
+                    {vehicle.car_brand} - {vehicle.plate_number}
+                  </option>
+                ))}
+              </select>
+              {vehiclesLoading ? (
+                <p className="text-xs text-gray-500 mt-1">Memuat kendaraan...</p>
+              ) : vehicles.length === 0 ? (
+                <p className="text-xs text-gray-500 mt-1">
+                  Member ini belum memiliki kendaraan. Tambahkan di menu daftar kendaraan.
+                </p>
+              ) : null}
+            </div>
+          )}
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Kategori <span className="text-red-500">*</span>
@@ -594,6 +709,7 @@ export function KasirHarian() {
             <input
               {...register('car_brand')}
               type="text"
+              readOnly={Boolean(selectedCustomerId && vehicles.length > 0)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
             />
             {errors.car_brand && (
@@ -608,6 +724,7 @@ export function KasirHarian() {
             <input
               {...register('plate_number')}
               type="text"
+              readOnly={Boolean(selectedCustomerId && vehicles.length > 0)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
             />
             {errors.plate_number && (

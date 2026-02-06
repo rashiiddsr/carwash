@@ -41,6 +41,15 @@ const sanitizeUser = (row) => ({
   updated_at: row.updated_at,
 });
 
+const buildVehicle = (row) => ({
+  id: row.id,
+  customer_id: row.customer_id,
+  car_brand: row.car_brand,
+  plate_number: row.plate_number,
+  created_at: row.created_at,
+  updated_at: row.updated_at,
+});
+
 const buildTransaction = (row) => ({
   id: row.id,
   trx_date: row.trx_date,
@@ -131,6 +140,19 @@ const fetchTransactionById = async (id) => {
   }
 
   return buildTransaction(rows[0]);
+};
+
+const fetchVehicleById = async (id) => {
+  const [rows] = await pool.query(
+    'SELECT id, customer_id, car_brand, plate_number, created_at, updated_at FROM vehicles WHERE id = ? LIMIT 1',
+    [id]
+  );
+
+  if (!rows.length) {
+    return null;
+  }
+
+  return buildVehicle(rows[0]);
 };
 
 app.post('/auth/login', asyncHandler(async (req, res) => {
@@ -262,6 +284,93 @@ app.delete('/users/:id', asyncHandler(async (req, res) => {
   const { id } = req.params;
 
   await pool.query('DELETE FROM users WHERE id = ?', [id]);
+  return res.json({ success: true });
+}));
+
+app.get('/vehicles', asyncHandler(async (req, res) => {
+  const { customerId } = req.query;
+  const requesterId = req.user?.userId;
+  const requesterRole = req.user?.role;
+  const values = [];
+  let query = 'SELECT id, customer_id, car_brand, plate_number, created_at, updated_at FROM vehicles';
+
+  if (requesterRole === 'CUSTOMER') {
+    query += ' WHERE customer_id = ?';
+    values.push(requesterId);
+  } else if (customerId) {
+    query += ' WHERE customer_id = ?';
+    values.push(customerId);
+  }
+
+  query += ' ORDER BY created_at DESC';
+
+  const [rows] = await pool.query(query, values);
+  res.json(rows.map(buildVehicle));
+}));
+
+app.post('/vehicles', asyncHandler(async (req, res) => {
+  const requesterRole = req.user?.role;
+  const requesterId = req.user?.userId;
+  const { customer_id, car_brand, plate_number } = req.body;
+  const resolvedCustomerId = requesterRole === 'CUSTOMER' ? requesterId : customer_id;
+
+  if (!resolvedCustomerId || !car_brand || !plate_number) {
+    return res.status(400).json({ message: 'Missing required fields' });
+  }
+
+  const vehicleId = randomUUID();
+  await pool.query(
+    'INSERT INTO vehicles (id, customer_id, car_brand, plate_number) VALUES (?, ?, ?, ?)',
+    [vehicleId, resolvedCustomerId, car_brand, plate_number]
+  );
+
+  const vehicle = await fetchVehicleById(vehicleId);
+  if (!vehicle) {
+    return res.status(500).json({ message: 'Failed to load vehicle' });
+  }
+
+  return res.status(201).json(vehicle);
+}));
+
+app.put('/vehicles/:id', asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { car_brand, plate_number } = req.body;
+  const requesterRole = req.user?.role;
+  const requesterId = req.user?.userId;
+
+  if (!car_brand || !plate_number) {
+    return res.status(400).json({ message: 'Missing required fields' });
+  }
+
+  if (requesterRole === 'CUSTOMER') {
+    const vehicle = await fetchVehicleById(id);
+    if (!vehicle || vehicle.customer_id !== requesterId) {
+      return res.status(404).json({ message: 'Vehicle not found' });
+    }
+  }
+
+  await pool.query(
+    'UPDATE vehicles SET car_brand = ?, plate_number = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+    [car_brand, plate_number, id]
+  );
+
+  const vehicle = await fetchVehicleById(id);
+  return res.json(vehicle);
+}));
+
+app.delete('/vehicles/:id', asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const requesterRole = req.user?.role;
+  const requesterId = req.user?.userId;
+
+  if (requesterRole === 'CUSTOMER') {
+    const vehicle = await fetchVehicleById(id);
+    if (!vehicle || vehicle.customer_id !== requesterId) {
+      return res.status(404).json({ message: 'Vehicle not found' });
+    }
+  }
+
+  await pool.query('DELETE FROM vehicles WHERE id = ?', [id]);
   return res.json({ success: true });
 }));
 

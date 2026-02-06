@@ -37,6 +37,15 @@ export interface Transaction {
   employee?: User;
 }
 
+export interface Vehicle {
+  id: string;
+  customer_id: string;
+  car_brand: string;
+  plate_number: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface LoginResponse {
   token: string;
   user: User;
