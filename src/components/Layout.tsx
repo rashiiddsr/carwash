@@ -68,6 +68,12 @@ const menuItems: MenuItem[] = [
     icon: <TrendingUp className="w-5 h-5" />,
     roles: ['CUSTOMER'],
   },
+  {
+    label: 'Daftar Kendaraan',
+    path: '/kendaraan',
+    icon: <Car className="w-5 h-5" />,
+    roles: ['CUSTOMER'],
+  },
 ];
 
 export function Layout({ children }: { children: React.ReactNode }) {

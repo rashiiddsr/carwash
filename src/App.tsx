@@ -15,6 +15,7 @@ import { KaryawanDashboard } from './pages/karyawan/Dashboard';
 import { PekerjaanSaya } from './pages/karyawan/Pekerjaan';
 import { CustomerDashboard } from './pages/customer/Dashboard';
 import { ProgresCustomer } from './pages/customer/Progres';
+import { DaftarKendaraanCustomer } from './pages/customer/Kendaraan';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -179,6 +180,16 @@ export default function App() {
                 <ProtectedRoute allowedRoles={['CUSTOMER']}>
                   <Layout>
                     <ProgresCustomer />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/customer/kendaraan"
+              element={
+                <ProtectedRoute allowedRoles={['CUSTOMER']}>
+                  <Layout>
+                    <DaftarKendaraanCustomer />
                   </Layout>
                 </ProtectedRoute>
               }

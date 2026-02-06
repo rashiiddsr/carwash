@@ -1,5 +1,5 @@
 import { authApi } from './auth';
-import { Category, Transaction, User } from '../types';
+import { Category, Transaction, User, Vehicle } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -184,6 +184,32 @@ export const api = {
           method: 'DELETE',
         }
       );
+    },
+  },
+
+  vehicles: {
+    async getAll(filters?: { customerId?: string }): Promise<Vehicle[]> {
+      return request<Vehicle[]>('/vehicles', {}, { customerId: filters?.customerId });
+    },
+
+    async create(data: { customer_id: string; car_brand: string; plate_number: string }) {
+      return request<Vehicle>('/vehicles', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+    },
+
+    async update(id: string, data: { car_brand: string; plate_number: string }) {
+      return request<Vehicle>(`/vehicles/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      });
+    },
+
+    async delete(id: string) {
+      return request<{ success: boolean }>(`/vehicles/${id}`, {
+        method: 'DELETE',
+      });
     },
   },
 };

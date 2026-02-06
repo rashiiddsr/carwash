@@ -17,6 +17,19 @@ VALUES
   (UUID(), 'Karyawan Royal Carwash', '0812711103333', '$2b$12$jlhRwWc74ItUZj9puebRu.dCwuZPsf2XrBeCeqvDCuuA0Co1lKtXO', 'KARYAWAN'),
   (UUID(), 'Customer Royal Carwash', '0812711104444', '$2b$12$jlhRwWc74ItUZj9puebRu.dCwuZPsf2XrBeCeqvDCuuA0Co1lKtXO', 'CUSTOMER');
 
+CREATE TABLE IF NOT EXISTS vehicles (
+  id CHAR(36) NOT NULL PRIMARY KEY,
+  customer_id CHAR(36) NOT NULL,
+  car_brand VARCHAR(150) NOT NULL,
+  plate_number VARCHAR(50) NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_vehicles_customer FOREIGN KEY (customer_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX idx_vehicles_customer ON vehicles (customer_id);
+CREATE INDEX idx_vehicles_plate ON vehicles (plate_number);
+
 CREATE TABLE IF NOT EXISTS categories (
   id CHAR(36) NOT NULL PRIMARY KEY,
   name VARCHAR(150) NOT NULL,
