@@ -1,8 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../../contexts/AuthContext';
 import { api } from '../../lib/api';
-import { formatCurrency, formatDateTime } from '../../lib/utils';
-import { Car, History, Clock } from 'lucide-react';
+import { formatCurrency, formatDateTime, formatDate } from '../../lib/utils';
+import { calculatePointSummary, POINT_EXPIRY_DAYS } from '../../lib/points';
+import { Car, History, Clock, Gift } from 'lucide-react';
 
 export function CustomerDashboard() {
   const { user } = useAuth();
@@ -14,6 +15,7 @@ export function CustomerDashboard() {
 
   const activeTransactions = transactions.filter((t) => t.status !== 'DONE');
   const recentTransactions = transactions.slice(0, 5);
+  const pointSummary = calculatePointSummary(transactions);
 
   return (
     <div className="space-y-6">
@@ -22,7 +24,7 @@ export function CustomerDashboard() {
         <p className="text-gray-600 mt-1">Selamat datang, {user?.name}</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
           <div className="flex items-center justify-between">
             <div>
@@ -45,6 +47,68 @@ export function CustomerDashboard() {
               <History className="w-6 h-6 text-gray-600" />
             </div>
           </div>
+        </div>
+
+        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 mb-1">Poin Aktif</p>
+              <p className="text-3xl font-bold text-emerald-600">
+                {pointSummary.activeEntries.length}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">
+                Berlaku hingga {POINT_EXPIRY_DAYS} hari per poin
+              </p>
+            </div>
+            <div className="w-12 h-12 rounded-lg bg-emerald-50 flex items-center justify-center">
+              <Gift className="w-6 h-6 text-emerald-600" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100">
+        <div className="p-6 border-b border-gray-100">
+          <h2 className="text-lg font-semibold text-gray-900">Progres Masa Berlaku Poin</h2>
+          <p className="text-sm text-gray-600 mt-1">
+            Setiap poin kadaluarsa {POINT_EXPIRY_DAYS} hari setelah didapatkan.
+          </p>
+        </div>
+        <div className="p-6">
+          {pointSummary.activeEntries.length === 0 ? (
+            <div className="py-8 text-center">
+              <Clock className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+              <p className="text-gray-600">Belum ada poin aktif</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="bg-emerald-50 border border-emerald-100 rounded-lg p-4">
+                <p className="text-sm font-medium text-emerald-700">
+                  {pointSummary.nextExpiryCount} poin akan segera expired pada{' '}
+                  {pointSummary.nextExpiryDate
+                    ? formatDate(pointSummary.nextExpiryDate.toISOString())
+                    : '-'}
+                </p>
+                {pointSummary.daysRemaining !== null && (
+                  <p className="text-xs text-emerald-700 mt-1">
+                    Sisa {pointSummary.daysRemaining} hari lagi
+                  </p>
+                )}
+              </div>
+              <div>
+                <div className="flex items-center justify-between text-xs text-gray-500 mb-2">
+                  <span>Baru didapat</span>
+                  <span>Kadaluarsa</span>
+                </div>
+                <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
+                  <div
+                    className="h-3 bg-emerald-500 rounded-full transition-all"
+                    style={{ width: `${pointSummary.progressPercent}%` }}
+                  ></div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

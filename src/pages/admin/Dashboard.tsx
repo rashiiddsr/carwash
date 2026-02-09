@@ -1,6 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../lib/api';
-import { getTodayDate, formatCurrency, formatTime } from '../../lib/utils';
+import { getTodayDate, formatCurrency, formatTime, formatDate, formatDateISO } from '../../lib/utils';
+import {
+  calculatePointSummary,
+  POINT_EXPIRY_DAYS,
+  getDaysRemaining,
+} from '../../lib/points';
 import {
   DollarSign,
   ShoppingCart,
@@ -56,10 +61,27 @@ function StatusBadge({ status }: { status: string }) {
 
 export function AdminDashboard() {
   const today = getTodayDate();
+  const todayDate = new Date();
+  const pointsStartDate = new Date(todayDate);
+  pointsStartDate.setDate(pointsStartDate.getDate() - POINT_EXPIRY_DAYS);
 
   const { data: transactions = [], isLoading } = useQuery({
     queryKey: ['transactions', today],
     queryFn: () => api.transactions.getAll({ date: today }),
+  });
+
+  const { data: pointTransactions = [], isLoading: isLoadingPoints } = useQuery({
+    queryKey: [
+      'transactions',
+      'points',
+      formatDateISO(pointsStartDate),
+      formatDateISO(todayDate),
+    ],
+    queryFn: () =>
+      api.transactions.getAll({
+        startDate: formatDateISO(pointsStartDate),
+        endDate: formatDateISO(todayDate),
+      }),
   });
 
   const totalTransactions = transactions.length;
@@ -70,6 +92,11 @@ export function AdminDashboard() {
   const doneCount = transactions.filter((t) => t.status === 'DONE').length;
 
   const recentTransactions = transactions.slice(0, 5);
+  const pointSummary = calculatePointSummary(pointTransactions, todayDate);
+  const expiringSoonCount = pointSummary.activeEntries.filter(
+    (entry) => getDaysRemaining(entry.expiresAt, todayDate) <= 30
+  ).length;
+  const upcomingPoints = pointSummary.activeEntries.slice(0, 5);
 
   if (isLoading) {
     return (
@@ -123,6 +150,90 @@ export function AdminDashboard() {
           icon={<CheckCircle className="w-6 h-6 text-green-600" />}
           color="bg-green-50"
         />
+      </div>
+
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100">
+        <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">Pantauan Poin Member</h2>
+            <p className="text-sm text-gray-600 mt-1">
+              Masa berlaku poin dihitung {POINT_EXPIRY_DAYS} hari per transaksi selesai.
+            </p>
+          </div>
+        </div>
+        <div className="p-6">
+          {isLoadingPoints ? (
+            <div className="py-10 text-center">
+              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto"></div>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-emerald-50 border border-emerald-100 rounded-lg p-4">
+                  <p className="text-xs text-emerald-700 mb-1">Total Poin Aktif</p>
+                  <p className="text-2xl font-bold text-emerald-700">
+                    {pointSummary.activeEntries.length}
+                  </p>
+                </div>
+                <div className="bg-amber-50 border border-amber-100 rounded-lg p-4">
+                  <p className="text-xs text-amber-700 mb-1">Poin Expired 30 Hari</p>
+                  <p className="text-2xl font-bold text-amber-700">{expiringSoonCount}</p>
+                </div>
+                <div className="bg-slate-50 border border-slate-100 rounded-lg p-4">
+                  <p className="text-xs text-slate-600 mb-1">Expired Terdekat</p>
+                  <p className="text-sm font-semibold text-slate-700">
+                    {pointSummary.nextExpiryDate
+                      ? formatDate(pointSummary.nextExpiryDate.toISOString())
+                      : '-'}
+                  </p>
+                  {pointSummary.nextExpiryDate && (
+                    <p className="text-xs text-slate-500 mt-1">
+                      {pointSummary.nextExpiryCount} poin akan kadaluarsa
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-sm font-semibold text-gray-900 mb-3">
+                  Poin yang Akan Kadaluarsa Terdekat
+                </h3>
+                {upcomingPoints.length === 0 ? (
+                  <div className="py-6 text-center text-sm text-gray-500">
+                    Belum ada poin aktif dalam periode ini
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {upcomingPoints.map((entry) => (
+                      <div
+                        key={entry.id}
+                        className="flex items-center justify-between border border-gray-100 rounded-lg p-3"
+                      >
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">
+                            {entry.customerName}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            Didapat {formatDate(entry.earnedAt.toISOString())}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs text-gray-500">Expired</p>
+                          <p className="text-sm font-semibold text-rose-600">
+                            {formatDate(entry.expiresAt.toISOString())}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {getDaysRemaining(entry.expiresAt, todayDate)} hari lagi
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100">
