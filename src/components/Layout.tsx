@@ -7,6 +7,7 @@ import {
   CreditCard,
   Crown,
   Tags,
+  Users,
   UserCircle,
   FileText,
   Briefcase,
