@@ -1,5 +1,5 @@
 export type UserRole = 'ADMIN' | 'KARYAWAN' | 'CUSTOMER';
-export type TransactionStatus = 'QUEUED' | 'WASHING' | 'FINISHING' | 'DONE';
+export type TransactionStatus = 'QUEUED' | 'WASHING' | 'DONE';
 
 export interface User {
   id: string;
@@ -79,6 +79,5 @@ export interface DashboardStats {
   totalRevenue: number;
   queuedCount: number;
   washingCount: number;
-  finishingCount: number;
   doneCount: number;
 }

@@ -26,7 +26,6 @@ function StatusBadge({ status }: { status: string }) {
   const config = {
     QUEUED: { label: 'Antri', class: 'bg-gray-100 text-gray-700' },
     WASHING: { label: 'Dicuci', class: 'bg-blue-100 text-blue-700' },
-    FINISHING: { label: 'Finishing', class: 'bg-yellow-100 text-yellow-700' },
     DONE: { label: 'Selesai', class: 'bg-green-100 text-green-700' },
   };
 
@@ -315,7 +314,6 @@ export function KasirHarian() {
               <option value="">Semua Status</option>
               <option value="QUEUED">Antri</option>
               <option value="WASHING">Dicuci</option>
-              <option value="FINISHING">Finishing</option>
               <option value="DONE">Selesai</option>
             </select>
           </div>
@@ -434,7 +432,6 @@ export function KasirHarian() {
                       >
                         <option value="QUEUED">Antri</option>
                         <option value="WASHING">Dicuci</option>
-                        <option value="FINISHING">Finishing</option>
                         <option value="DONE">Selesai</option>
                       </select>
                     </td>

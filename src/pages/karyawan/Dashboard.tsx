@@ -135,7 +135,7 @@ export function KaryawanDashboard() {
                           ? 'Antri'
                           : job.status === 'WASHING'
                           ? 'Dicuci'
-                          : 'Finishing'}
+                          : 'Selesai'}
                       </span>
                     </td>
                   </tr>

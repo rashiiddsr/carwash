@@ -1,11 +1,18 @@
+import { FormEvent, useState } from 'react';
+import { useMutation } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
+import { api } from '../lib/api';
 import { formatDate } from '../lib/utils';
 import { UserCircle, Phone, Calendar, Shield } from 'lucide-react';
+import { useToast } from '../hooks/useToast';
 
 export function Profil() {
-  const { user } = useAuth();
-
-  if (!user) return null;
+  const { user, updateUser } = useAuth();
+  const { showSuccess, showError, ToastComponent } = useToast();
+  const userId = user?.id;
+  const [name, setName] = useState(user?.name ?? '');
+  const [phone, setPhone] = useState(user?.phone ?? '');
+  const [password, setPassword] = useState('');
 
   const roleLabels = {
     ADMIN: 'Administrator',
@@ -13,8 +20,66 @@ export function Profil() {
     CUSTOMER: 'Customer',
   };
 
+  const updateProfileMutation = useMutation({
+    mutationFn: () => {
+      if (!userId) {
+        throw new Error('User tidak ditemukan');
+      }
+      return api.users.update(userId, { name, phone });
+    },
+    onSuccess: (updatedUser) => {
+      updateUser(updatedUser);
+      showSuccess('Profil berhasil diperbarui');
+    },
+    onError: (error) => {
+      showError(error instanceof Error ? error.message : 'Gagal memperbarui profil');
+    },
+  });
+
+  const updatePasswordMutation = useMutation({
+    mutationFn: () => {
+      if (!userId) {
+        throw new Error('User tidak ditemukan');
+      }
+      return api.users.resetPassword(userId, password);
+    },
+    onSuccess: () => {
+      setPassword('');
+      showSuccess('Password berhasil diperbarui');
+    },
+    onError: (error) => {
+      showError(error instanceof Error ? error.message : 'Gagal memperbarui password');
+    },
+  });
+
+  const handleUpdateProfile = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!name.trim() || !phone.trim()) {
+      showError('Nama dan nomor HP wajib diisi');
+      return;
+    }
+
+    updateProfileMutation.mutate();
+  };
+
+  const handleUpdatePassword = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!password.trim()) {
+      showError('Password baru wajib diisi');
+      return;
+    }
+
+    updatePasswordMutation.mutate();
+  };
+
+  if (!user) return null;
+
+  const isCustomer = user.role === 'CUSTOMER';
+
   return (
     <div className="space-y-6">
+      {ToastComponent}
+
       <div>
         <h1 className="text-3xl font-bold text-gray-900">Profil Saya</h1>
         <p className="text-gray-600 mt-1">Informasi akun Anda</p>
@@ -67,12 +132,72 @@ export function Profil() {
         </div>
       </div>
 
-      <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
-        <h3 className="font-semibold text-blue-900 mb-2">Informasi</h3>
-        <p className="text-sm text-blue-800">
-          Untuk mengubah data profil Anda, silakan hubungi administrator.
-        </p>
-      </div>
+      {isCustomer ? (
+        <>
+          <form
+            onSubmit={handleUpdateProfile}
+            className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-4"
+          >
+            <h3 className="text-lg font-semibold text-gray-900">Ubah Profil</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nama</label>
+                <input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nomor HP</label>
+                <input
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                />
+              </div>
+            </div>
+            <button
+              type="submit"
+              disabled={updateProfileMutation.isPending}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-60"
+            >
+              {updateProfileMutation.isPending ? 'Menyimpan...' : 'Simpan Profil'}
+            </button>
+          </form>
+
+          <form
+            onSubmit={handleUpdatePassword}
+            className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-4"
+          >
+            <h3 className="text-lg font-semibold text-gray-900">Ganti Password</h3>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Password Baru</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Kosongkan jika tidak ingin ganti"
+                className="w-full md:w-80 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={updatePasswordMutation.isPending}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:opacity-60"
+            >
+              {updatePasswordMutation.isPending ? 'Menyimpan...' : 'Simpan Password'}
+            </button>
+          </form>
+        </>
+      ) : (
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
+          <h3 className="font-semibold text-blue-900 mb-2">Informasi</h3>
+          <p className="text-sm text-blue-800">
+            Untuk mengubah data profil Anda, silakan hubungi administrator.
+          </p>
+        </div>
+      )}
     </div>
   );
 }

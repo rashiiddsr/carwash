@@ -9,7 +9,6 @@ function ProgressStepper({ status }: { status: string }) {
   const steps = [
     { key: 'QUEUED', label: 'Antri' },
     { key: 'WASHING', label: 'Dicuci' },
-    { key: 'FINISHING', label: 'Finishing' },
     { key: 'DONE', label: 'Selesai' },
   ];
 
@@ -86,7 +85,6 @@ export function ProgresCustomer() {
           <option value="">Semua Status</option>
           <option value="QUEUED">Antri</option>
           <option value="WASHING">Sedang Dicuci</option>
-          <option value="FINISHING">Finishing</option>
           <option value="DONE">Selesai</option>
         </select>
       </div>
@@ -124,8 +122,6 @@ export function ProgresCustomer() {
                           ? 'bg-green-100 text-green-700'
                           : transaction.status === 'WASHING'
                           ? 'bg-blue-100 text-blue-700'
-                          : transaction.status === 'FINISHING'
-                          ? 'bg-yellow-100 text-yellow-700'
                           : 'bg-gray-100 text-gray-700'
                       }`}
                     >
@@ -133,8 +129,6 @@ export function ProgresCustomer() {
                         ? 'Antri'
                         : transaction.status === 'WASHING'
                         ? 'Sedang Dicuci'
-                        : transaction.status === 'FINISHING'
-                        ? 'Finishing'
                         : 'Selesai'}
                     </span>
                   </div>

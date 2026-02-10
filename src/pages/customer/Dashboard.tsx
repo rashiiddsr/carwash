@@ -122,7 +122,7 @@ export function CustomerDashboard() {
                         ? 'Antri'
                         : transaction.status === 'WASHING'
                         ? 'Sedang Dicuci'
-                        : 'Finishing'}
+                        : 'Selesai'}
                     </span>
                   </div>
                   <div className="grid grid-cols-2 gap-4 text-sm">
@@ -198,8 +198,6 @@ export function CustomerDashboard() {
                             ? 'bg-green-100 text-green-700'
                             : transaction.status === 'WASHING'
                             ? 'bg-blue-100 text-blue-700'
-                            : transaction.status === 'FINISHING'
-                            ? 'bg-yellow-100 text-yellow-700'
                             : 'bg-gray-100 text-gray-700'
                         }`}
                       >
@@ -207,8 +205,6 @@ export function CustomerDashboard() {
                           ? 'Antri'
                           : transaction.status === 'WASHING'
                           ? 'Dicuci'
-                          : transaction.status === 'FINISHING'
-                          ? 'Finishing'
                           : 'Selesai'}
                       </span>
                     </td>
