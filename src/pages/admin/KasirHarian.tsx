@@ -18,6 +18,7 @@ const transactionSchema = z.object({
   plate_number: z.string().min(1, 'Nomor polisi wajib diisi'),
   employee_id: z.string().min(1, 'Karyawan wajib dipilih'),
   notes: z.string().optional().nullable(),
+  rain_guarantee_free: z.boolean().optional(),
 });
 
 type TransactionFormData = z.infer<typeof transactionSchema>;
@@ -93,12 +94,56 @@ export function KasirHarian() {
   const selectedCustomerId = watch('customer_id');
   const selectedVehicleId = watch('vehicle_id');
   const selectedCategory = categories.find((c) => c.id === selectedCategoryId);
+  const rainGuaranteeFree = watch('rain_guarantee_free');
+  const plateNumber = watch('plate_number');
   const previousCustomerId = useRef<string | null>(null);
 
   const { data: vehicles = [], isLoading: vehiclesLoading } = useQuery({
     queryKey: ['vehicles', selectedCustomerId],
     queryFn: () => api.vehicles.getAll({ customerId: selectedCustomerId || undefined }),
     enabled: Boolean(selectedCustomerId),
+  });
+
+
+  const { data: activeMemberships = [] } = useQuery({
+    queryKey: ['memberships', selectedVehicleId],
+    queryFn: () => api.memberships.getAll({ vehicleId: selectedVehicleId || undefined }),
+    enabled: Boolean(selectedVehicleId),
+  });
+
+  const activeMembership = activeMemberships[0];
+  const isExpressCategory = selectedCategory?.name === 'Cuci Express';
+  const canUseRainGuarantee =
+    Boolean(activeMembership)
+    && isExpressCategory
+    && (activeMembership?.tier === 'GOLD' || activeMembership?.tier === 'PLATINUM_VIP');
+
+  useEffect(() => {
+    if (!canUseRainGuarantee && rainGuaranteeFree) {
+      setValue('rain_guarantee_free', false);
+    }
+  }, [canUseRainGuarantee, rainGuaranteeFree, setValue]);
+
+  const { data: pricingPreview } = useQuery({
+    queryKey: [
+      'transaction-pricing-preview',
+      selectedDate,
+      selectedCustomerId,
+      selectedVehicleId,
+      selectedCategoryId,
+      plateNumber,
+      rainGuaranteeFree,
+    ],
+    queryFn: () =>
+      api.transactions.previewPricing({
+        trx_date: selectedDate,
+        customer_id: selectedCustomerId || null,
+        vehicle_id: selectedVehicleId || null,
+        category_id: selectedCategoryId,
+        plate_number: plateNumber,
+        rain_guarantee_free: Boolean(rainGuaranteeFree),
+      }),
+    enabled: Boolean(selectedCategoryId && plateNumber),
   });
 
   useEffect(() => {
@@ -148,16 +193,16 @@ export function KasirHarian() {
 
   const createMutation = useMutation({
     mutationFn: (data: TransactionFormData) => {
-      const category = categories.find((c) => c.id === data.category_id);
       return api.transactions.create({
         trx_date: selectedDate,
         customer_id: data.customer_id || null,
         category_id: data.category_id,
         car_brand: data.car_brand,
         plate_number: data.plate_number,
+        vehicle_id: data.vehicle_id || null,
         employee_id: data.employee_id,
-        price: category?.price || 0,
         notes: data.notes || null,
+        rain_guarantee_free: Boolean(data.rain_guarantee_free),
       });
     },
     onSuccess: () => {
@@ -173,15 +218,15 @@ export function KasirHarian() {
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: TransactionFormData }) => {
-      const category = categories.find((c) => c.id === data.category_id);
       return api.transactions.update(id, {
         customer_id: data.customer_id || null,
         category_id: data.category_id,
         car_brand: data.car_brand,
         plate_number: data.plate_number,
+        vehicle_id: data.vehicle_id || null,
         employee_id: data.employee_id,
-        price: category?.price || 0,
         notes: data.notes || null,
+        rain_guarantee_free: Boolean(data.rain_guarantee_free),
       });
     },
     onSuccess: () => {
@@ -218,6 +263,7 @@ export function KasirHarian() {
       plate_number: '',
       employee_id: '',
       notes: '',
+      rain_guarantee_free: false,
     });
     setShowAddModal(true);
   };
@@ -233,6 +279,7 @@ export function KasirHarian() {
       plate_number: transaction.plate_number,
       employee_id: transaction.employee_id,
       notes: transaction.notes || '',
+      rain_guarantee_free: Boolean(transaction.is_rain_guarantee_free),
     });
     setShowEditModal(true);
   };
@@ -515,9 +562,20 @@ export function KasirHarian() {
               <p className="text-red-500 text-xs mt-1">{errors.category_id.message}</p>
             )}
             {selectedCategory && (
-              <p className="text-sm text-gray-600 mt-2">
-                Harga: <span className="font-semibold">{formatCurrency(selectedCategory.price)}</span>
-              </p>
+              <div className="mt-2 text-sm text-gray-600 space-y-1">
+                <p>
+                  Harga dasar: <span className="font-semibold">{formatCurrency(selectedCategory.price)}</span>
+                </p>
+                {pricingPreview && (
+                  <>
+                    <p>Diskon member ({pricingPreview.discount_percent}%): {formatCurrency(pricingPreview.discount_amount)}</p>
+                    <p className="font-semibold text-gray-900">Harga akhir: {formatCurrency(pricingPreview.final_price)}</p>
+                    {pricingPreview.is_membership_quota_free && <p className="text-green-600">Gratis dari kuota member bulanan.</p>}
+                    {pricingPreview.is_loyalty_free && <p className="text-green-600">Gratis loyalitas: cuci ke-9 per kendaraan.</p>}
+                    {pricingPreview.is_rain_guarantee_free && <p className="text-green-600">Gratis express karena kehujanan.</p>}
+                  </>
+                )}
+              </div>
             )}
           </div>
 
@@ -572,6 +630,13 @@ export function KasirHarian() {
               <p className="text-red-500 text-xs mt-1">{errors.employee_id.message}</p>
             )}
           </div>
+
+          {canUseRainGuarantee && (
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input type="checkbox" {...register('rain_guarantee_free')} className="rounded border-gray-300" />
+              Gratis cuci express karena kehujanan
+            </label>
+          )}
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Catatan</label>
@@ -674,9 +739,20 @@ export function KasirHarian() {
               <p className="text-red-500 text-xs mt-1">{errors.category_id.message}</p>
             )}
             {selectedCategory && (
-              <p className="text-sm text-gray-600 mt-2">
-                Harga baru: <span className="font-semibold">{formatCurrency(selectedCategory.price)}</span>
-              </p>
+              <div className="mt-2 text-sm text-gray-600 space-y-1">
+                <p>
+                  Harga dasar: <span className="font-semibold">{formatCurrency(selectedCategory.price)}</span>
+                </p>
+                {pricingPreview && (
+                  <>
+                    <p>Diskon member ({pricingPreview.discount_percent}%): {formatCurrency(pricingPreview.discount_amount)}</p>
+                    <p className="font-semibold text-gray-900">Harga akhir: {formatCurrency(pricingPreview.final_price)}</p>
+                    {pricingPreview.is_membership_quota_free && <p className="text-green-600">Gratis dari kuota member bulanan.</p>}
+                    {pricingPreview.is_loyalty_free && <p className="text-green-600">Gratis loyalitas: cuci ke-9 per kendaraan.</p>}
+                    {pricingPreview.is_rain_guarantee_free && <p className="text-green-600">Gratis express karena kehujanan.</p>}
+                  </>
+                )}
+              </div>
             )}
           </div>
 
@@ -729,6 +805,13 @@ export function KasirHarian() {
               <p className="text-red-500 text-xs mt-1">{errors.employee_id.message}</p>
             )}
           </div>
+
+          {canUseRainGuarantee && (
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input type="checkbox" {...register('rain_guarantee_free')} className="rounded border-gray-300" />
+              Gratis cuci express karena kehujanan
+            </label>
+          )}
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Catatan</label>

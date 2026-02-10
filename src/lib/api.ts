@@ -1,5 +1,5 @@
 import { authApi } from './auth';
-import { Category, Membership, PointEntry, Transaction, User, Vehicle } from '../types';
+import { Category, Membership, PointEntry, Transaction, TransactionPricingPreview, User, Vehicle } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -138,15 +138,30 @@ export const api = {
       return request<Transaction>(`/transactions/${id}`);
     },
 
+    async previewPricing(data: {
+      trx_date: string;
+      customer_id?: string | null;
+      vehicle_id?: string | null;
+      category_id: string;
+      plate_number: string;
+      rain_guarantee_free?: boolean;
+    }): Promise<TransactionPricingPreview> {
+      return request<TransactionPricingPreview>('/transactions/preview-pricing', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+    },
+
     async create(data: {
       trx_date: string;
       customer_id?: string | null;
+      vehicle_id?: string | null;
       category_id: string;
       car_brand: string;
       plate_number: string;
       employee_id: string;
-      price: number;
       notes?: string | null;
+      rain_guarantee_free?: boolean;
     }): Promise<Transaction> {
       return request<Transaction>('/transactions', {
         method: 'POST',
@@ -156,12 +171,13 @@ export const api = {
 
     async update(id: string, data: {
       customer_id?: string | null;
+      vehicle_id?: string | null;
       category_id?: string;
       car_brand?: string;
       plate_number?: string;
       employee_id?: string;
-      price?: number;
       notes?: string | null;
+      rain_guarantee_free?: boolean;
     }): Promise<Transaction> {
       return request<Transaction>(`/transactions/${id}`,
         {

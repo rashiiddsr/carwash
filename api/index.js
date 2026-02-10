@@ -94,6 +94,30 @@ const MEMBERSHIP_POINT_RATE = {
   PLATINUM_VIP: 3,
 };
 
+const MEMBERSHIP_DISCOUNT_RATE = {
+  BASIC: 0,
+  BRONZE: 5,
+  SILVER: 10,
+  GOLD: 15,
+  PLATINUM_VIP: 20,
+};
+
+const MEMBERSHIP_FREE_WASH_QUOTA = {
+  BASIC: 1,
+  BRONZE: 1,
+  SILVER: 1,
+  GOLD: 4,
+  PLATINUM_VIP: 5,
+};
+
+const REGULAR_CATEGORY_NAMES = new Set([
+  'Big SUV/Double Cabin',
+  'Small/City Car',
+  'SUV/MPV',
+]);
+
+const EXPRESS_CATEGORY_NAME = 'Cuci Express';
+
 const POINT_EXPIRY_DAYS = 365;
 
 const DEFAULT_CATEGORIES = [
@@ -115,6 +139,12 @@ const buildTransaction = (row) => ({
   plate_number: row.plate_number,
   employee_id: row.employee_id,
   price: Number(row.price) || 0,
+  base_price: Number(row.base_price) || Number(row.price) || 0,
+  discount_percent: Number(row.discount_percent) || 0,
+  discount_amount: Number(row.discount_amount) || 0,
+  is_membership_quota_free: Boolean(row.is_membership_quota_free),
+  is_loyalty_free: Boolean(row.is_loyalty_free),
+  is_rain_guarantee_free: Boolean(row.is_rain_guarantee_free),
   status: row.status,
   notes: row.notes,
   created_at: row.created_at,
@@ -256,6 +286,122 @@ const ensureDefaultCategories = async () => {
       [category.name, category.price, category.name]
     );
   }
+};
+
+const ensureTransactionPricingColumns = async () => {
+  await pool.query('ALTER TABLE transactions ADD COLUMN IF NOT EXISTS base_price DECIMAL(12,2) NOT NULL DEFAULT 0 AFTER price');
+  await pool.query('ALTER TABLE transactions ADD COLUMN IF NOT EXISTS discount_percent DECIMAL(5,2) NOT NULL DEFAULT 0 AFTER base_price');
+  await pool.query('ALTER TABLE transactions ADD COLUMN IF NOT EXISTS discount_amount DECIMAL(12,2) NOT NULL DEFAULT 0 AFTER discount_percent');
+  await pool.query('ALTER TABLE transactions ADD COLUMN IF NOT EXISTS is_membership_quota_free BOOLEAN NOT NULL DEFAULT FALSE AFTER discount_amount');
+  await pool.query('ALTER TABLE transactions ADD COLUMN IF NOT EXISTS is_loyalty_free BOOLEAN NOT NULL DEFAULT FALSE AFTER is_membership_quota_free');
+  await pool.query('ALTER TABLE transactions ADD COLUMN IF NOT EXISTS is_rain_guarantee_free BOOLEAN NOT NULL DEFAULT FALSE AFTER is_loyalty_free');
+};
+
+const computeTransactionPricing = async ({
+  trxDate,
+  customerId,
+  vehicleId,
+  category,
+  plateNumber,
+  rainGuaranteeFree,
+  excludeTransactionId,
+}) => {
+  const basePrice = Number(category.price) || 0;
+  const tier = 'BASIC';
+  let resolvedTier = tier;
+  let membership = null;
+
+  if (vehicleId) {
+    membership = await fetchActiveMembershipByVehicle(vehicleId, trxDate);
+    if (membership?.tier) {
+      resolvedTier = membership.tier;
+    }
+  }
+
+  const discountPercent = MEMBERSHIP_DISCOUNT_RATE[resolvedTier] ?? 0;
+  const discountAmount = Math.round((basePrice * discountPercent)) / 100;
+  let finalPrice = Math.max(0, basePrice - discountAmount);
+  let isMembershipQuotaFree = false;
+  let isLoyaltyFree = false;
+  let isRainGuaranteeFree = false;
+
+  if (membership && customerId) {
+    const freeWashQuota = MEMBERSHIP_FREE_WASH_QUOTA[resolvedTier] ?? 0;
+
+    if (freeWashQuota > 0) {
+      const monthStartDate = `${trxDate.slice(0, 7)}-01`;
+      const [usageRows] = await pool.query(
+        `SELECT COUNT(*) AS used_quota
+         FROM transactions
+         WHERE customer_id = ?
+           AND plate_number = ?
+           AND trx_date BETWEEN ? AND ?
+           AND is_membership_quota_free = TRUE
+           ${excludeTransactionId ? 'AND id <> ?' : ''}`,
+        excludeTransactionId
+          ? [customerId, plateNumber, monthStartDate, trxDate, excludeTransactionId]
+          : [customerId, plateNumber, monthStartDate, trxDate]
+      );
+
+      const usedQuota = Number(usageRows[0]?.used_quota) || 0;
+      if (usedQuota < freeWashQuota) {
+        isMembershipQuotaFree = true;
+      }
+    }
+  }
+
+  if (!isMembershipQuotaFree && customerId) {
+    const isWashCategory = REGULAR_CATEGORY_NAMES.has(category.name) || category.name === EXPRESS_CATEGORY_NAME;
+    if (isWashCategory) {
+      const [loyaltyRows] = await pool.query(
+        `SELECT COUNT(*) AS wash_count
+         FROM transactions
+         WHERE customer_id = ?
+           AND plate_number = ?
+           AND category_id IN (
+             SELECT id FROM categories WHERE name IN ('Big SUV/Double Cabin', 'Small/City Car', 'SUV/MPV', 'Cuci Express')
+           )
+           AND is_membership_quota_free = FALSE
+           AND is_rain_guarantee_free = FALSE
+           AND trx_date <= ?
+           ${excludeTransactionId ? 'AND id <> ?' : ''}`,
+        excludeTransactionId
+          ? [customerId, plateNumber, trxDate, excludeTransactionId]
+          : [customerId, plateNumber, trxDate]
+      );
+
+      const priorEligibleCount = Number(loyaltyRows[0]?.wash_count) || 0;
+      if (priorEligibleCount % 9 === 8) {
+        isLoyaltyFree = true;
+      }
+    }
+  }
+
+  const canUseRainGuarantee =
+    membership
+    && (resolvedTier === 'GOLD' || resolvedTier === 'PLATINUM_VIP')
+    && category.name === EXPRESS_CATEGORY_NAME
+    && Boolean(rainGuaranteeFree);
+
+  if (canUseRainGuarantee) {
+    isRainGuaranteeFree = true;
+  }
+
+  if (isMembershipQuotaFree || isLoyaltyFree || isRainGuaranteeFree) {
+    finalPrice = 0;
+  }
+
+  return {
+    membership,
+    tier: resolvedTier,
+    base_price: basePrice,
+    discount_percent: discountPercent,
+    discount_amount: discountAmount,
+    is_membership_quota_free: isMembershipQuotaFree,
+    is_loyalty_free: isLoyaltyFree,
+    is_rain_guarantee_free: isRainGuaranteeFree,
+    final_price: finalPrice,
+  };
 };
 
 app.post('/auth/login', asyncHandler(async (req, res) => {
@@ -852,19 +998,93 @@ app.get('/transactions/:id', asyncHandler(async (req, res) => {
   return res.json(transaction);
 }));
 
-app.post('/transactions', asyncHandler(async (req, res) => {
-  const { trx_date, customer_id, category_id, car_brand, plate_number, employee_id, price, notes } = req.body;
+app.post('/transactions/preview-pricing', asyncHandler(async (req, res) => {
+  const { trx_date, customer_id, vehicle_id, category_id, plate_number, rain_guarantee_free } = req.body;
 
-  if (!trx_date || !category_id || !car_brand || !plate_number || !employee_id || price === undefined) {
+  if (!trx_date || !category_id || !plate_number) {
+    return res.status(400).json({ message: 'trx_date, category_id, dan plate_number wajib diisi' });
+  }
+
+  const [categoryRows] = await pool.query(
+    'SELECT id, name, price FROM categories WHERE id = ? LIMIT 1',
+    [category_id]
+  );
+
+  if (!categoryRows.length) {
+    return res.status(404).json({ message: 'Kategori tidak ditemukan' });
+  }
+
+  const pricing = await computeTransactionPricing({
+    trxDate: trx_date,
+    customerId: customer_id || null,
+    vehicleId: vehicle_id || null,
+    category: categoryRows[0],
+    plateNumber: plate_number,
+    rainGuaranteeFree: rain_guarantee_free,
+  });
+
+  return res.json(pricing);
+}));
+
+app.post('/transactions', asyncHandler(async (req, res) => {
+  const {
+    trx_date,
+    customer_id,
+    vehicle_id,
+    category_id,
+    car_brand,
+    plate_number,
+    employee_id,
+    notes,
+    rain_guarantee_free,
+  } = req.body;
+
+  if (!trx_date || !category_id || !car_brand || !plate_number || !employee_id) {
     return res.status(400).json({ message: 'Missing required fields' });
   }
+
+  const [categoryRows] = await pool.query(
+    'SELECT id, name, price FROM categories WHERE id = ? LIMIT 1',
+    [category_id]
+  );
+
+  if (!categoryRows.length) {
+    return res.status(404).json({ message: 'Kategori tidak ditemukan' });
+  }
+
+  const pricing = await computeTransactionPricing({
+    trxDate: trx_date,
+    customerId: customer_id || null,
+    vehicleId: vehicle_id || null,
+    category: categoryRows[0],
+    plateNumber: plate_number,
+    rainGuaranteeFree: rain_guarantee_free,
+  });
 
   const transactionId = randomUUID();
   await pool.query(
     `INSERT INTO transactions
-      (id, trx_date, customer_id, category_id, car_brand, plate_number, employee_id, price, notes, status)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'QUEUED')`,
-    [transactionId, trx_date, customer_id || null, category_id, car_brand, plate_number, employee_id, price, notes || null]
+      (id, trx_date, customer_id, category_id, car_brand, plate_number, employee_id, price, base_price,
+       discount_percent, discount_amount, is_membership_quota_free, is_loyalty_free, is_rain_guarantee_free,
+       notes, status)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'QUEUED')`,
+    [
+      transactionId,
+      trx_date,
+      customer_id || null,
+      category_id,
+      car_brand,
+      plate_number,
+      employee_id,
+      pricing.final_price,
+      pricing.base_price,
+      pricing.discount_percent,
+      pricing.discount_amount,
+      pricing.is_membership_quota_free,
+      pricing.is_loyalty_free,
+      pricing.is_rain_guarantee_free,
+      notes || null,
+    ]
   );
 
   const transaction = await fetchTransactionById(transactionId);
@@ -877,46 +1097,80 @@ app.post('/transactions', asyncHandler(async (req, res) => {
 
 app.put('/transactions/:id', asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { customer_id, category_id, car_brand, plate_number, employee_id, price, notes } = req.body;
+  const {
+    customer_id,
+    vehicle_id,
+    category_id,
+    car_brand,
+    plate_number,
+    employee_id,
+    notes,
+    rain_guarantee_free,
+  } = req.body;
 
-  const fields = [];
-  const values = [];
-
-  if (customer_id !== undefined) {
-    fields.push('customer_id = ?');
-    values.push(customer_id || null);
-  }
-  if (category_id !== undefined) {
-    fields.push('category_id = ?');
-    values.push(category_id);
-  }
-  if (car_brand !== undefined) {
-    fields.push('car_brand = ?');
-    values.push(car_brand);
-  }
-  if (plate_number !== undefined) {
-    fields.push('plate_number = ?');
-    values.push(plate_number);
-  }
-  if (employee_id !== undefined) {
-    fields.push('employee_id = ?');
-    values.push(employee_id);
-  }
-  if (price !== undefined) {
-    fields.push('price = ?');
-    values.push(price);
-  }
-  if (notes !== undefined) {
-    fields.push('notes = ?');
-    values.push(notes || null);
+  const existingTransaction = await fetchTransactionById(id);
+  if (!existingTransaction) {
+    return res.status(404).json({ message: 'Transaction not found' });
   }
 
-  if (!fields.length) {
-    return res.status(400).json({ message: 'No fields to update' });
+  const resolvedCategoryId = category_id || existingTransaction.category_id;
+  const [categoryRows] = await pool.query(
+    'SELECT id, name, price FROM categories WHERE id = ? LIMIT 1',
+    [resolvedCategoryId]
+  );
+
+  if (!categoryRows.length) {
+    return res.status(404).json({ message: 'Kategori tidak ditemukan' });
   }
 
-  const updateQuery = `UPDATE transactions SET ${fields.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`;
-  await pool.query(updateQuery, [...values, id]);
+  const resolvedCustomerId = customer_id !== undefined ? (customer_id || null) : existingTransaction.customer_id;
+  const resolvedPlateNumber = plate_number || existingTransaction.plate_number;
+  const resolvedTrxDate = existingTransaction.trx_date;
+
+  const pricing = await computeTransactionPricing({
+    trxDate: resolvedTrxDate,
+    customerId: resolvedCustomerId,
+    vehicleId: vehicle_id || null,
+    category: categoryRows[0],
+    plateNumber: resolvedPlateNumber,
+    rainGuaranteeFree: rain_guarantee_free,
+    excludeTransactionId: id,
+  });
+
+  await pool.query(
+    `UPDATE transactions
+     SET customer_id = ?,
+         category_id = ?,
+         car_brand = ?,
+         plate_number = ?,
+         employee_id = ?,
+         price = ?,
+         base_price = ?,
+         discount_percent = ?,
+         discount_amount = ?,
+         is_membership_quota_free = ?,
+         is_loyalty_free = ?,
+         is_rain_guarantee_free = ?,
+         notes = ?,
+         updated_at = CURRENT_TIMESTAMP
+     WHERE id = ?`,
+    [
+      resolvedCustomerId,
+      resolvedCategoryId,
+      car_brand || existingTransaction.car_brand,
+      resolvedPlateNumber,
+      employee_id || existingTransaction.employee_id,
+      pricing.final_price,
+      pricing.base_price,
+      pricing.discount_percent,
+      pricing.discount_amount,
+      pricing.is_membership_quota_free,
+      pricing.is_loyalty_free,
+      pricing.is_rain_guarantee_free,
+      notes !== undefined ? (notes || null) : existingTransaction.notes,
+      id,
+    ]
+  );
 
   const transaction = await fetchTransactionById(id);
   return res.json(transaction);
@@ -989,7 +1243,7 @@ app.delete('/transactions/:id', asyncHandler(async (req, res) => {
   return res.json({ success: true });
 }));
 
-ensureDefaultCategories()
+Promise.all([ensureDefaultCategories(), ensureTransactionPricingColumns()])
   .then(() => {
     app.listen(port, () => {
       // eslint-disable-next-line no-console
