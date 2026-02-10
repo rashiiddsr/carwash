@@ -5,6 +5,7 @@ import {
   Car,
   LayoutDashboard,
   CreditCard,
+  Crown,
   Tags,
   Users,
   UserCircle,
@@ -37,6 +38,12 @@ const menuItems: MenuItem[] = [
     label: 'Kasir Harian',
     path: '/kasir',
     icon: <CreditCard className="w-5 h-5" />,
+    roles: ['ADMIN'],
+  },
+  {
+    label: 'Pembelian Member',
+    path: '/membership',
+    icon: <Crown className="w-5 h-5" />,
     roles: ['ADMIN'],
   },
   {

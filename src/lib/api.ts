@@ -1,5 +1,5 @@
 import { authApi } from './auth';
-import { Category, Transaction, User, Vehicle } from '../types';
+import { Category, Membership, PointEntry, Transaction, User, Vehicle } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -210,6 +210,34 @@ export const api = {
       return request<{ success: boolean }>(`/vehicles/${id}`, {
         method: 'DELETE',
       });
+    },
+  },
+
+  memberships: {
+    async getAll(filters?: { customerId?: string; vehicleId?: string }): Promise<Membership[]> {
+      return request<Membership[]>('/memberships', {}, {
+        customerId: filters?.customerId,
+        vehicleId: filters?.vehicleId,
+      });
+    },
+
+    async create(data: {
+      vehicle_id: string;
+      tier: Membership['tier'];
+      duration_months: number;
+      starts_at?: string;
+      extra_vehicles?: number;
+    }) {
+      return request<Membership>('/memberships', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+    },
+  },
+
+  points: {
+    async getAll(filters?: { customerId?: string }): Promise<PointEntry[]> {
+      return request<PointEntry[]>('/points', {}, { customerId: filters?.customerId });
     },
   },
 };

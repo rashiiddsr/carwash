@@ -1,11 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../lib/api';
-import { getTodayDate, formatCurrency, formatTime, formatDate, formatDateISO } from '../../lib/utils';
-import {
-  calculatePointSummary,
-  POINT_EXPIRY_DAYS,
-  getDaysRemaining,
-} from '../../lib/points';
+import { getTodayDate, formatCurrency, formatTime, formatDate } from '../../lib/utils';
+import { calculatePointSummary, getDaysRemaining, POINT_EXPIRY_DAYS } from '../../lib/points';
 import {
   DollarSign,
   ShoppingCart,
@@ -14,7 +10,6 @@ import {
   Sparkles,
   CheckCircle,
 } from 'lucide-react';
-import { Transaction } from '../../types';
 
 function StatCard({
   title,
@@ -62,26 +57,15 @@ function StatusBadge({ status }: { status: string }) {
 export function AdminDashboard() {
   const today = getTodayDate();
   const todayDate = new Date();
-  const pointsStartDate = new Date(todayDate);
-  pointsStartDate.setDate(pointsStartDate.getDate() - POINT_EXPIRY_DAYS);
 
   const { data: transactions = [], isLoading } = useQuery({
     queryKey: ['transactions', today],
     queryFn: () => api.transactions.getAll({ date: today }),
   });
 
-  const { data: pointTransactions = [], isLoading: isLoadingPoints } = useQuery({
-    queryKey: [
-      'transactions',
-      'points',
-      formatDateISO(pointsStartDate),
-      formatDateISO(todayDate),
-    ],
-    queryFn: () =>
-      api.transactions.getAll({
-        startDate: formatDateISO(pointsStartDate),
-        endDate: formatDateISO(todayDate),
-      }),
+  const { data: pointEntries = [], isLoading: isLoadingPoints } = useQuery({
+    queryKey: ['points', 'admin'],
+    queryFn: () => api.points.getAll(),
   });
 
   const totalTransactions = transactions.length;
@@ -92,10 +76,10 @@ export function AdminDashboard() {
   const doneCount = transactions.filter((t) => t.status === 'DONE').length;
 
   const recentTransactions = transactions.slice(0, 5);
-  const pointSummary = calculatePointSummary(pointTransactions, todayDate);
-  const expiringSoonCount = pointSummary.activeEntries.filter(
-    (entry) => getDaysRemaining(entry.expiresAt, todayDate) <= 30
-  ).length;
+  const pointSummary = calculatePointSummary(pointEntries, todayDate);
+  const expiringSoonCount = pointSummary.activeEntries
+    .filter((entry) => getDaysRemaining(entry.expiresAt, todayDate) <= 30)
+    .reduce((sum, entry) => sum + entry.points, 0);
   const upcomingPoints = pointSummary.activeEntries.slice(0, 5);
 
   if (isLoading) {
@@ -172,12 +156,14 @@ export function AdminDashboard() {
                 <div className="bg-emerald-50 border border-emerald-100 rounded-lg p-4">
                   <p className="text-xs text-emerald-700 mb-1">Total Poin Aktif</p>
                   <p className="text-2xl font-bold text-emerald-700">
-                    {pointSummary.activeEntries.length}
+                    {pointSummary.totalPoints.toFixed(1).replace('.0', '')}
                   </p>
                 </div>
                 <div className="bg-amber-50 border border-amber-100 rounded-lg p-4">
                   <p className="text-xs text-amber-700 mb-1">Poin Expired 30 Hari</p>
-                  <p className="text-2xl font-bold text-amber-700">{expiringSoonCount}</p>
+                  <p className="text-2xl font-bold text-amber-700">
+                    {expiringSoonCount.toFixed(1).replace('.0', '')}
+                  </p>
                 </div>
                 <div className="bg-slate-50 border border-slate-100 rounded-lg p-4">
                   <p className="text-xs text-slate-600 mb-1">Expired Terdekat</p>
@@ -188,7 +174,7 @@ export function AdminDashboard() {
                   </p>
                   {pointSummary.nextExpiryDate && (
                     <p className="text-xs text-slate-500 mt-1">
-                      {pointSummary.nextExpiryCount} poin akan kadaluarsa
+                      {pointSummary.nextExpiryCount.toFixed(1).replace('.0', '')} poin akan kadaluarsa
                     </p>
                   )}
                 </div>
@@ -214,7 +200,8 @@ export function AdminDashboard() {
                             {entry.customerName}
                           </p>
                           <p className="text-xs text-gray-500">
-                            Didapat {formatDate(entry.earnedAt.toISOString())}
+                            {entry.points.toFixed(1).replace('.0', '')} poin · Didapat{' '}
+                            {formatDate(entry.earnedAt.toISOString())}
                           </p>
                         </div>
                         <div className="text-right">
