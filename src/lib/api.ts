@@ -228,6 +228,7 @@ export const api = {
       duration_months: number;
       starts_at?: string;
       extra_vehicles?: number;
+      extra_vehicle_ids?: string[];
     }) {
       return request<Membership>('/memberships', {
         method: 'POST',
