@@ -96,6 +96,16 @@ const MEMBERSHIP_POINT_RATE = {
 
 const POINT_EXPIRY_DAYS = 500;
 
+const DEFAULT_CATEGORIES = [
+  { name: 'Small/City Car', price: 45000 },
+  { name: 'SUV/MPV', price: 50000 },
+  { name: 'Big SUV/Double Cabin', price: 55000 },
+  { name: 'Cuci Express', price: 35000 },
+  { name: 'Small Bike', price: 15000 },
+  { name: 'Medium Bike', price: 20000 },
+  { name: 'Large Bike', price: 30000 },
+];
+
 const buildTransaction = (row) => ({
   id: row.id,
   trx_date: row.trx_date,
@@ -232,6 +242,20 @@ const findVehicleByCustomerAndPlate = async (customerId, plateNumber) => {
   }
 
   return buildVehicle(rows[0]);
+};
+
+const ensureDefaultCategories = async () => {
+  for (const category of DEFAULT_CATEGORIES) {
+    await pool.query(
+      `INSERT INTO categories (id, name, price, is_active)
+       SELECT UUID(), ?, ?, true
+       FROM DUAL
+       WHERE NOT EXISTS (
+         SELECT 1 FROM categories WHERE name = ?
+       )`,
+      [category.name, category.price, category.name]
+    );
+  }
 };
 
 app.post('/auth/login', asyncHandler(async (req, res) => {
@@ -417,24 +441,37 @@ app.put('/vehicles/:id', asyncHandler(async (req, res) => {
   const requesterRole = req.user?.role;
   const requesterId = req.user?.userId;
 
-  if (!car_brand || !plate_number) {
+  if (!car_brand) {
     return res.status(400).json({ message: 'Missing required fields' });
   }
 
-  if (requesterRole === 'CUSTOMER') {
-    const vehicle = await fetchVehicleById(id);
-    if (!vehicle || vehicle.customer_id !== requesterId) {
-      return res.status(404).json({ message: 'Vehicle not found' });
-    }
+  const vehicle = await fetchVehicleById(id);
+  if (!vehicle) {
+    return res.status(404).json({ message: 'Vehicle not found' });
   }
 
-  await pool.query(
-    'UPDATE vehicles SET car_brand = ?, plate_number = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-    [car_brand, plate_number, id]
-  );
+  if (requesterRole === 'CUSTOMER') {
+    if (vehicle.customer_id !== requesterId) {
+      return res.status(404).json({ message: 'Vehicle not found' });
+    }
 
-  const vehicle = await fetchVehicleById(id);
-  return res.json(vehicle);
+    await pool.query(
+      'UPDATE vehicles SET car_brand = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      [car_brand, id]
+    );
+  } else {
+    if (!plate_number) {
+      return res.status(400).json({ message: 'Missing required fields' });
+    }
+
+    await pool.query(
+      'UPDATE vehicles SET car_brand = ?, plate_number = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      [car_brand, plate_number, id]
+    );
+  }
+
+  const updatedVehicle = await fetchVehicleById(id);
+  return res.json(updatedVehicle);
 }));
 
 app.delete('/vehicles/:id', asyncHandler(async (req, res) => {
@@ -454,9 +491,10 @@ app.delete('/vehicles/:id', asyncHandler(async (req, res) => {
 }));
 
 app.get('/memberships', asyncHandler(async (req, res) => {
-  const { customerId, vehicleId } = req.query;
+  const { customerId, vehicleId, includeExpired } = req.query;
   const requesterRole = req.user?.role;
   const requesterId = req.user?.userId;
+  const skipActiveFilter = includeExpired === 'true';
   const params = [];
   let query = `
     SELECT m.id, m.vehicle_id, m.tier, m.starts_at, m.ends_at, m.duration_months, m.extra_vehicles,
@@ -465,16 +503,18 @@ app.get('/memberships', asyncHandler(async (req, res) => {
     JOIN vehicles v ON m.vehicle_id = v.id`;
 
   if (requesterRole === 'CUSTOMER') {
-    query += ' WHERE v.customer_id = ? AND m.ends_at >= CURDATE()';
+    query += ' WHERE v.customer_id = ?';
     params.push(requesterId);
   } else if (vehicleId) {
-    query += ' WHERE m.vehicle_id = ? AND m.ends_at >= CURDATE()';
+    query += ' WHERE m.vehicle_id = ?';
     params.push(vehicleId);
   } else if (customerId) {
-    query += ' WHERE v.customer_id = ? AND m.ends_at >= CURDATE()';
+    query += ' WHERE v.customer_id = ?';
     params.push(customerId);
-  } else {
-    query += ' WHERE m.ends_at >= CURDATE()';
+  }
+
+  if (!skipActiveFilter) {
+    query += params.length ? ' AND m.ends_at >= CURDATE()' : ' WHERE m.ends_at >= CURDATE()';
   }
 
   query += ' ORDER BY m.starts_at DESC';
@@ -859,7 +899,15 @@ app.delete('/transactions/:id', asyncHandler(async (req, res) => {
   return res.json({ success: true });
 }));
 
-app.listen(port, () => {
-  // eslint-disable-next-line no-console
-  console.log(`API server running on port ${port}`);
-});
+ensureDefaultCategories()
+  .then(() => {
+    app.listen(port, () => {
+      // eslint-disable-next-line no-console
+      console.log(`API server running on port ${port}`);
+    });
+  })
+  .catch((error) => {
+    // eslint-disable-next-line no-console
+    console.error('Failed to initialize API server', error);
+    process.exit(1);
+  });
