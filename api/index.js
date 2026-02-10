@@ -94,7 +94,7 @@ const MEMBERSHIP_POINT_RATE = {
   PLATINUM_VIP: 3,
 };
 
-const POINT_EXPIRY_DAYS = 500;
+const POINT_EXPIRY_DAYS = 365;
 
 const DEFAULT_CATEGORIES = [
   { name: 'Small/City Car', price: 45000 },
@@ -114,7 +114,7 @@ const buildTransaction = (row) => ({
   car_brand: row.car_brand,
   plate_number: row.plate_number,
   employee_id: row.employee_id,
-  price: row.price,
+  price: Number(row.price) || 0,
   status: row.status,
   notes: row.notes,
   created_at: row.created_at,
@@ -130,7 +130,7 @@ const buildTransaction = (row) => ({
     ? {
         id: row.category_ref_id,
         name: row.category_name,
-        price: row.category_price,
+        price: Number(row.category_price) || 0,
       }
     : null,
   employee: row.employee_ref_id
@@ -608,6 +608,18 @@ app.post('/memberships', asyncHandler(async (req, res) => {
   const resolvedExtraVehicles = tier === 'PLATINUM_VIP' ? parsedExtraVehicleIds.length : 0;
   const startDateString = startDate.toISOString().slice(0, 10);
   const endDateString = endDate.toISOString().slice(0, 10);
+  const affectedVehicleIds = [vehicle_id, ...extraVehicles.map((item) => item.id)];
+
+  if (affectedVehicleIds.length > 0) {
+    const placeholders = affectedVehicleIds.map(() => '?').join(', ');
+    await pool.query(
+      `UPDATE memberships
+       SET ends_at = DATE_SUB(?, INTERVAL 1 DAY), updated_at = CURRENT_TIMESTAMP
+       WHERE vehicle_id IN (${placeholders})
+         AND ends_at >= ?`,
+      [startDateString, ...affectedVehicleIds, startDateString]
+    );
+  }
 
   await pool.query(
     `INSERT INTO memberships

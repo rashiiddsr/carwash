@@ -2,7 +2,7 @@ import { PointEntry as ApiPointEntry } from '../types';
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
-export const POINT_EXPIRY_DAYS = 500;
+export const POINT_EXPIRY_DAYS = 365;
 
 export type PointLedgerEntry = {
   id: string;

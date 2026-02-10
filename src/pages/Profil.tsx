@@ -29,52 +29,42 @@ export function Profil() {
     },
     onSuccess: (updatedUser) => {
       updateUser(updatedUser);
-      showSuccess('Profil berhasil diperbarui');
-    },
-    onError: (error) => {
-      showError(error instanceof Error ? error.message : 'Gagal memperbarui profil');
     },
   });
 
   const updatePasswordMutation = useMutation({
     mutationFn: () => {
-      if (!userId) {
-        throw new Error('User tidak ditemukan');
+      if (!userId || !password.trim()) {
+        return Promise.resolve({ success: true });
       }
       return api.users.resetPassword(userId, password);
     },
-    onSuccess: () => {
-      setPassword('');
-      showSuccess('Password berhasil diperbarui');
-    },
-    onError: (error) => {
-      showError(error instanceof Error ? error.message : 'Gagal memperbarui password');
-    },
   });
 
-  const handleUpdateProfile = (event: FormEvent<HTMLFormElement>) => {
+  const handleSaveAccount = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!name.trim() || !phone.trim()) {
       showError('Nama dan nomor HP wajib diisi');
       return;
     }
 
-    updateProfileMutation.mutate();
-  };
-
-  const handleUpdatePassword = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!password.trim()) {
-      showError('Password baru wajib diisi');
-      return;
+    try {
+      await updateProfileMutation.mutateAsync();
+      if (password.trim()) {
+        await updatePasswordMutation.mutateAsync();
+        setPassword('');
+        showSuccess('Profil dan password berhasil diperbarui');
+        return;
+      }
+      showSuccess('Profil berhasil diperbarui');
+    } catch (error) {
+      showError(error instanceof Error ? error.message : 'Gagal memperbarui akun');
     }
-
-    updatePasswordMutation.mutate();
   };
 
   if (!user) return null;
 
-  const isCustomer = user.role === 'CUSTOMER';
+  const isSaving = updateProfileMutation.isPending || updatePasswordMutation.isPending;
 
   return (
     <div className="space-y-6">
@@ -132,72 +122,49 @@ export function Profil() {
         </div>
       </div>
 
-      {isCustomer ? (
-        <>
-          <form
-            onSubmit={handleUpdateProfile}
-            className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-4"
-          >
-            <h3 className="text-lg font-semibold text-gray-900">Ubah Profil</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nama</label>
-                <input
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nomor HP</label>
-                <input
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                />
-              </div>
-            </div>
-            <button
-              type="submit"
-              disabled={updateProfileMutation.isPending}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-60"
-            >
-              {updateProfileMutation.isPending ? 'Menyimpan...' : 'Simpan Profil'}
-            </button>
-          </form>
-
-          <form
-            onSubmit={handleUpdatePassword}
-            className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-4"
-          >
-            <h3 className="text-lg font-semibold text-gray-900">Ganti Password</h3>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Password Baru</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Kosongkan jika tidak ingin ganti"
-                className="w-full md:w-80 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={updatePasswordMutation.isPending}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:opacity-60"
-            >
-              {updatePasswordMutation.isPending ? 'Menyimpan...' : 'Simpan Password'}
-            </button>
-          </form>
-        </>
-      ) : (
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
-          <h3 className="font-semibold text-blue-900 mb-2">Informasi</h3>
-          <p className="text-sm text-blue-800">
-            Untuk mengubah data profil Anda, silakan hubungi administrator.
-          </p>
+      <form
+        onSubmit={handleSaveAccount}
+        className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-4"
+      >
+        <h3 className="text-lg font-semibold text-gray-900">Ubah Profil & Password</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Nama</label>
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Nomor HP</label>
+            <input
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+            />
+          </div>
         </div>
-      )}
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Password Baru (Opsional)</label>
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Kosongkan jika tidak ingin ganti password"
+            className="w-full md:w-96 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+          />
+        </div>
+
+        <button
+          type="submit"
+          disabled={isSaving}
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-60"
+        >
+          {isSaving ? 'Menyimpan...' : 'Simpan Perubahan'}
+        </button>
+      </form>
     </div>
   );
 }

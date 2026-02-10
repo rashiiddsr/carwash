@@ -7,7 +7,7 @@ import { api } from '../../lib/api';
 import { getTodayDate, formatCurrency, formatTime } from '../../lib/utils';
 import { useToast } from '../../hooks/useToast';
 import { Modal } from '../../components/ui/Modal';
-import { Plus, Edit, Trash2, Eye, Filter, ShoppingCart } from 'lucide-react';
+import { Plus, Edit, Eye, Filter, ShoppingCart } from 'lucide-react';
 import { Transaction } from '../../types';
 
 const transactionSchema = z.object({
@@ -196,17 +196,6 @@ export function KasirHarian() {
     },
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => api.transactions.delete(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['transactions'] });
-      showSuccess('Transaksi berhasil dihapus');
-    },
-    onError: (error) => {
-      showError(error instanceof Error ? error.message : 'Gagal menghapus transaksi');
-    },
-  });
-
   const updateStatusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) =>
       api.transactions.updateStatus(id, status),
@@ -253,11 +242,7 @@ export function KasirHarian() {
     setShowDetailModal(true);
   };
 
-  const handleDelete = (id: string) => {
-    if (confirm('Yakin ingin menghapus transaksi ini?')) {
-      deleteMutation.mutate(id);
-    }
-  };
+
 
   const handleStatusChange = (id: string, status: string) => {
     updateStatusMutation.mutate({ id, status });
@@ -445,15 +430,11 @@ export function KasirHarian() {
                         </button>
                         <button
                           onClick={() => handleEdit(transaction)}
-                          className="p-1 hover:bg-yellow-50 text-yellow-600 rounded transition"
+                          disabled={transaction.status === 'DONE'}
+                          className="p-1 hover:bg-yellow-50 text-yellow-600 rounded transition disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                          title={transaction.status === 'DONE' ? 'Transaksi selesai tidak bisa diedit' : 'Edit transaksi'}
                         >
                           <Edit className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(transaction.id)}
-                          className="p-1 hover:bg-red-50 text-red-600 rounded transition"
-                        >
-                          <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
                     </td>
