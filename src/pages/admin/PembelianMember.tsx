@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -25,6 +25,7 @@ type FormValues = z.infer<typeof formSchema>;
 
 export function PembelianMember() {
   const { showSuccess, showError, ToastComponent } = useToast();
+  const queryClient = useQueryClient();
   const [transactionPreview, setTransactionPreview] = useState<{
     tier: MembershipTierKey;
     total: number;
@@ -62,6 +63,12 @@ export function PembelianMember() {
     enabled: Boolean(selectedCustomerId),
   });
 
+  const { data: purchases = [], isLoading: isLoadingPurchases } = useQuery({
+    queryKey: ['memberships', 'history', selectedCustomerId],
+    queryFn: () => api.memberships.getAll({ customerId: selectedCustomerId, includeExpired: true }),
+    enabled: Boolean(selectedCustomerId),
+  });
+
   const availableMemberships = useMemo(
     () => MEMBERSHIP_TIERS.filter((tier) => tier.key !== 'BASIC'),
     []
@@ -91,6 +98,7 @@ export function PembelianMember() {
         months: durationMonths,
         extraVehicles,
       });
+      queryClient.invalidateQueries({ queryKey: ['memberships'] });
       showSuccess('Transaksi membership berhasil dibuat');
     },
     onError: (error) => {
@@ -260,6 +268,52 @@ export function PembelianMember() {
           )}
         </div>
       </div>
+
+
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-gray-900">Daftar Pembelian Membership</h2>
+          {selectedCustomerId && (
+            <span className="text-xs text-gray-500">Menampilkan riwayat customer terpilih</span>
+          )}
+        </div>
+
+        {!selectedCustomerId ? (
+          <p className="text-sm text-gray-500">Pilih customer untuk melihat daftar pembelian membership.</p>
+        ) : isLoadingPurchases ? (
+          <div className="py-8 text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+          </div>
+        ) : purchases.length === 0 ? (
+          <p className="text-sm text-gray-500">Belum ada pembelian membership.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tier</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Mulai</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Berakhir</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Durasi</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Extra Kendaraan</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {purchases.map((purchase) => (
+                  <tr key={purchase.id}>
+                    <td className="px-4 py-3 text-sm text-gray-900">{getMembershipTier(purchase.tier).label}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">{formatDateTime(`${purchase.starts_at}T00:00:00`)}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">{formatDateTime(`${purchase.ends_at}T00:00:00`)}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">{purchase.duration_months} bulan</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">{purchase.extra_vehicles}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
     </div>
   );
 }

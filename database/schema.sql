@@ -55,6 +55,34 @@ CREATE TABLE IF NOT EXISTS categories (
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
+INSERT INTO categories (id, name, price, is_active)
+SELECT UUID(), 'Small/City Car', 45000, TRUE FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM categories WHERE name = 'Small/City Car');
+
+INSERT INTO categories (id, name, price, is_active)
+SELECT UUID(), 'SUV/MPV', 50000, TRUE FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM categories WHERE name = 'SUV/MPV');
+
+INSERT INTO categories (id, name, price, is_active)
+SELECT UUID(), 'Big SUV/Double Cabin', 55000, TRUE FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM categories WHERE name = 'Big SUV/Double Cabin');
+
+INSERT INTO categories (id, name, price, is_active)
+SELECT UUID(), 'Cuci Express', 35000, TRUE FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM categories WHERE name = 'Cuci Express');
+
+INSERT INTO categories (id, name, price, is_active)
+SELECT UUID(), 'Small Bike', 15000, TRUE FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM categories WHERE name = 'Small Bike');
+
+INSERT INTO categories (id, name, price, is_active)
+SELECT UUID(), 'Medium Bike', 20000, TRUE FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM categories WHERE name = 'Medium Bike');
+
+INSERT INTO categories (id, name, price, is_active)
+SELECT UUID(), 'Large Bike', 30000, TRUE FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM categories WHERE name = 'Large Bike');
+
 CREATE TABLE IF NOT EXISTS transactions (
   id CHAR(36) NOT NULL PRIMARY KEY,
   trx_date DATE NOT NULL,
