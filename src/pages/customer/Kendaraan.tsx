@@ -10,7 +10,7 @@ import { useToast } from '../../hooks/useToast';
 import { Modal } from '../../components/ui/Modal';
 import { Vehicle } from '../../types';
 import { getMembershipTier, MembershipTierKey } from '../../lib/membership';
-import { formatCurrency, formatDate } from '../../lib/utils';
+import { formatCurrency } from '../../lib/utils';
 
 const vehicleSchema = z.object({
   car_brand: z.string().min(1, 'Tipe kendaraan wajib diisi'),
@@ -40,8 +40,8 @@ export function DaftarKendaraanCustomer() {
     enabled: Boolean(user?.id),
   });
 
-  const membershipByVehicle = new Map(
-    memberships.map((membership) => [membership.vehicle_id, membership])
+  const membershipByVehicle = new Map<string, MembershipTierKey>(
+    memberships.map((membership) => [membership.vehicle_id, membership.tier])
   );
 
   const {
@@ -153,8 +153,8 @@ export function DaftarKendaraanCustomer() {
         ) : (
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 p-6">
             {vehicles.map((vehicle) => {
-              const membership = membershipByVehicle.get(vehicle.id);
-              const tier = getMembershipTier((membership?.tier ?? 'BASIC') as MembershipTierKey);
+              const membershipKey = membershipByVehicle.get(vehicle.id) ?? 'BASIC';
+              const tier = getMembershipTier(membershipKey);
 
               return (
                 <div
@@ -177,11 +177,6 @@ export function DaftarKendaraanCustomer() {
                         {tier.key === 'BASIC' && (
                           <span className="text-xs text-gray-500">
                             Default, upgrade via kasir
-                          </span>
-                        )}
-                        {membership && (
-                          <span className="text-xs text-emerald-700 bg-emerald-50 px-2 py-1 rounded-full">
-                            Berlaku sampai {formatDate(`${membership.ends_at}T00:00:00`)}
                           </span>
                         )}
                       </div>
@@ -302,16 +297,17 @@ export function DaftarKendaraanCustomer() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Nomor Plat</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Nomor Plat <span className="text-red-500">*</span>
+            </label>
             <input
               {...register('plate_number')}
               type="text"
-              disabled
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-500 outline-none"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
             />
-            <p className="text-xs text-gray-500 mt-1">
-              Nomor plat hanya bisa diubah oleh admin.
-            </p>
+            {errors.plate_number && (
+              <p className="text-red-500 text-xs mt-1">{errors.plate_number.message}</p>
+            )}
           </div>
 
           <div className="flex gap-3 pt-4">

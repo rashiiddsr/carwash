@@ -214,11 +214,10 @@ export const api = {
   },
 
   memberships: {
-    async getAll(filters?: { customerId?: string; vehicleId?: string; includeExpired?: boolean }): Promise<Membership[]> {
+    async getAll(filters?: { customerId?: string; vehicleId?: string }): Promise<Membership[]> {
       return request<Membership[]>('/memberships', {}, {
         customerId: filters?.customerId,
         vehicleId: filters?.vehicleId,
-        includeExpired: filters?.includeExpired,
       });
     },
 
