@@ -46,6 +46,29 @@ export interface Vehicle {
   updated_at: string;
 }
 
+export interface Membership {
+  id: string;
+  vehicle_id: string;
+  tier: 'BASIC' | 'BRONZE' | 'SILVER' | 'GOLD' | 'PLATINUM_VIP';
+  starts_at: string;
+  ends_at: string;
+  duration_months: number;
+  extra_vehicles: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PointEntry {
+  id: string;
+  customer_id: string;
+  transaction_id: string;
+  points: number;
+  earned_at: string;
+  expires_at: string;
+  created_at: string;
+  customer?: User | null;
+}
+
 export interface LoginResponse {
   token: string;
   user: User;

@@ -30,6 +30,22 @@ CREATE TABLE IF NOT EXISTS vehicles (
 CREATE INDEX idx_vehicles_customer ON vehicles (customer_id);
 CREATE INDEX idx_vehicles_plate ON vehicles (plate_number);
 
+CREATE TABLE IF NOT EXISTS memberships (
+  id CHAR(36) NOT NULL PRIMARY KEY,
+  vehicle_id CHAR(36) NOT NULL,
+  tier ENUM('BASIC', 'BRONZE', 'SILVER', 'GOLD', 'PLATINUM_VIP') NOT NULL,
+  starts_at DATE NOT NULL,
+  ends_at DATE NOT NULL,
+  duration_months INT NOT NULL,
+  extra_vehicles INT NOT NULL DEFAULT 0,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_memberships_vehicle FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE CASCADE
+);
+
+CREATE INDEX idx_memberships_vehicle ON memberships (vehicle_id);
+CREATE INDEX idx_memberships_end ON memberships (ends_at);
+
 CREATE TABLE IF NOT EXISTS categories (
   id CHAR(36) NOT NULL PRIMARY KEY,
   name VARCHAR(150) NOT NULL,
@@ -62,3 +78,18 @@ CREATE INDEX idx_transactions_status ON transactions (status);
 CREATE INDEX idx_transactions_category ON transactions (category_id);
 CREATE INDEX idx_transactions_employee ON transactions (employee_id);
 CREATE INDEX idx_transactions_customer ON transactions (customer_id);
+
+CREATE TABLE IF NOT EXISTS points (
+  id CHAR(36) NOT NULL PRIMARY KEY,
+  customer_id CHAR(36) NOT NULL,
+  transaction_id CHAR(36) NOT NULL UNIQUE,
+  points DECIMAL(6,2) NOT NULL,
+  earned_at DATE NOT NULL,
+  expires_at DATE NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_points_customer FOREIGN KEY (customer_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_points_transaction FOREIGN KEY (transaction_id) REFERENCES transactions(id) ON DELETE CASCADE
+);
+
+CREATE INDEX idx_points_customer ON points (customer_id);
+CREATE INDEX idx_points_expires ON points (expires_at);

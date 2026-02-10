@@ -31,6 +31,13 @@ const pool = mysql.createPool({
 
 const jwtSecret = process.env.JWT_SECRET || 'change-this-secret';
 const jwtExpiresIn = process.env.JWT_EXPIRES_IN || '7d';
+const MS_PER_DAY = 1000 * 60 * 60 * 24;
+
+const addDays = (date, days) => {
+  const result = new Date(date);
+  result.setDate(result.getDate() + days);
+  return result;
+};
 
 const sanitizeUser = (row) => ({
   id: row.id,
@@ -49,6 +56,45 @@ const buildVehicle = (row) => ({
   created_at: row.created_at,
   updated_at: row.updated_at,
 });
+
+const buildMembership = (row) => ({
+  id: row.id,
+  vehicle_id: row.vehicle_id,
+  tier: row.tier,
+  starts_at: row.starts_at,
+  ends_at: row.ends_at,
+  duration_months: row.duration_months,
+  extra_vehicles: row.extra_vehicles,
+  created_at: row.created_at,
+  updated_at: row.updated_at,
+});
+
+const buildPointEntry = (row) => ({
+  id: row.id,
+  customer_id: row.customer_id,
+  transaction_id: row.transaction_id,
+  points: Number(row.points),
+  earned_at: row.earned_at,
+  expires_at: row.expires_at,
+  created_at: row.created_at,
+  customer: row.customer_ref_id
+    ? {
+        id: row.customer_ref_id,
+        name: row.customer_name,
+        phone: row.customer_phone,
+      }
+    : null,
+});
+
+const MEMBERSHIP_POINT_RATE = {
+  BASIC: 1,
+  BRONZE: 1,
+  SILVER: 1.5,
+  GOLD: 2.5,
+  PLATINUM_VIP: 3,
+};
+
+const POINT_EXPIRY_DAYS = 500;
 
 const buildTransaction = (row) => ({
   id: row.id,
@@ -146,6 +192,39 @@ const fetchVehicleById = async (id) => {
   const [rows] = await pool.query(
     'SELECT id, customer_id, car_brand, plate_number, created_at, updated_at FROM vehicles WHERE id = ? LIMIT 1',
     [id]
+  );
+
+  if (!rows.length) {
+    return null;
+  }
+
+  return buildVehicle(rows[0]);
+};
+
+const fetchActiveMembershipByVehicle = async (vehicleId, referenceDate) => {
+  const [rows] = await pool.query(
+    `SELECT id, vehicle_id, tier, starts_at, ends_at, duration_months, extra_vehicles, created_at, updated_at
+     FROM memberships
+     WHERE vehicle_id = ? AND ends_at >= ?
+     ORDER BY starts_at DESC
+     LIMIT 1`,
+    [vehicleId, referenceDate]
+  );
+
+  if (!rows.length) {
+    return null;
+  }
+
+  return buildMembership(rows[0]);
+};
+
+const findVehicleByCustomerAndPlate = async (customerId, plateNumber) => {
+  const [rows] = await pool.query(
+    `SELECT id, customer_id, car_brand, plate_number, created_at, updated_at
+     FROM vehicles
+     WHERE customer_id = ? AND plate_number = ?
+     LIMIT 1`,
+    [customerId, plateNumber]
   );
 
   if (!rows.length) {
@@ -372,6 +451,120 @@ app.delete('/vehicles/:id', asyncHandler(async (req, res) => {
 
   await pool.query('DELETE FROM vehicles WHERE id = ?', [id]);
   return res.json({ success: true });
+}));
+
+app.get('/memberships', asyncHandler(async (req, res) => {
+  const { customerId, vehicleId } = req.query;
+  const requesterRole = req.user?.role;
+  const requesterId = req.user?.userId;
+  const params = [];
+  let query = `
+    SELECT m.id, m.vehicle_id, m.tier, m.starts_at, m.ends_at, m.duration_months, m.extra_vehicles,
+      m.created_at, m.updated_at
+    FROM memberships m
+    JOIN vehicles v ON m.vehicle_id = v.id`;
+
+  if (requesterRole === 'CUSTOMER') {
+    query += ' WHERE v.customer_id = ? AND m.ends_at >= CURDATE()';
+    params.push(requesterId);
+  } else if (vehicleId) {
+    query += ' WHERE m.vehicle_id = ? AND m.ends_at >= CURDATE()';
+    params.push(vehicleId);
+  } else if (customerId) {
+    query += ' WHERE v.customer_id = ? AND m.ends_at >= CURDATE()';
+    params.push(customerId);
+  } else {
+    query += ' WHERE m.ends_at >= CURDATE()';
+  }
+
+  query += ' ORDER BY m.starts_at DESC';
+
+  const [rows] = await pool.query(query, params);
+  const memberships = rows.map(buildMembership);
+  const latestByVehicle = memberships.reduce((acc, membership) => {
+    if (!acc.has(membership.vehicle_id)) {
+      acc.set(membership.vehicle_id, membership);
+    }
+    return acc;
+  }, new Map());
+
+  return res.json(Array.from(latestByVehicle.values()));
+}));
+
+app.post('/memberships', asyncHandler(async (req, res) => {
+  const { vehicle_id, tier, duration_months, starts_at, extra_vehicles } = req.body;
+
+  if (!vehicle_id || !tier || !duration_months) {
+    return res.status(400).json({ message: 'Missing required fields' });
+  }
+
+  const vehicle = await fetchVehicleById(vehicle_id);
+  if (!vehicle) {
+    return res.status(404).json({ message: 'Vehicle not found' });
+  }
+
+  const startDate = starts_at ? new Date(starts_at) : new Date();
+  const endDate = new Date(startDate);
+  endDate.setMonth(endDate.getMonth() + Number(duration_months));
+
+  const membershipId = randomUUID();
+  await pool.query(
+    `INSERT INTO memberships
+      (id, vehicle_id, tier, starts_at, ends_at, duration_months, extra_vehicles)
+      VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [
+      membershipId,
+      vehicle_id,
+      tier,
+      startDate.toISOString().slice(0, 10),
+      endDate.toISOString().slice(0, 10),
+      Number(duration_months),
+      Number(extra_vehicles || 0),
+    ]
+  );
+
+  const [rows] = await pool.query(
+    `SELECT id, vehicle_id, tier, starts_at, ends_at, duration_months, extra_vehicles, created_at, updated_at
+     FROM memberships
+     WHERE id = ?
+     LIMIT 1`,
+    [membershipId]
+  );
+
+  return res.status(201).json(buildMembership(rows[0]));
+}));
+
+app.get('/points', asyncHandler(async (req, res) => {
+  const { customerId } = req.query;
+  const requesterRole = req.user?.role;
+  const requesterId = req.user?.userId;
+  const resolvedCustomerId = requesterRole === 'CUSTOMER' ? requesterId : customerId;
+
+  const values = [];
+  let query = `SELECT
+      p.id,
+      p.customer_id,
+      p.transaction_id,
+      p.points,
+      p.earned_at,
+      p.expires_at,
+      p.created_at,
+      customer.id AS customer_ref_id,
+      customer.name AS customer_name,
+      customer.phone AS customer_phone
+     FROM points p
+     LEFT JOIN users customer ON p.customer_id = customer.id`;
+
+  if (resolvedCustomerId) {
+    query += ' WHERE customer_id = ?';
+    values.push(resolvedCustomerId);
+  }
+
+  query += ' ORDER BY p.earned_at DESC';
+
+  const [rows] = await pool.query(query, values);
+
+  return res.json(rows.map(buildPointEntry));
 }));
 
 app.get('/categories', asyncHandler(async (req, res) => {
@@ -613,6 +806,49 @@ app.patch('/transactions/:id/status', asyncHandler(async (req, res) => {
   );
 
   const transaction = await fetchTransactionById(id);
+  if (!transaction) {
+    return res.status(404).json({ message: 'Transaction not found' });
+  }
+
+  if (status === 'DONE' && transaction.customer_id) {
+    const [existing] = await pool.query(
+      'SELECT id FROM points WHERE transaction_id = ? LIMIT 1',
+      [transaction.id]
+    );
+
+    if (!existing.length) {
+      const vehicle = await findVehicleByCustomerAndPlate(
+        transaction.customer_id,
+        transaction.plate_number
+      );
+      const membership = vehicle
+        ? await fetchActiveMembershipByVehicle(vehicle.id, transaction.trx_date)
+        : null;
+      const tier = membership?.tier || 'BASIC';
+      const points = MEMBERSHIP_POINT_RATE[tier] ?? MEMBERSHIP_POINT_RATE.BASIC;
+      const earnedDate = new Date(transaction.trx_date);
+      const expiresDate = addDays(earnedDate, POINT_EXPIRY_DAYS);
+
+      await pool.query(
+        `INSERT INTO points
+          (id, customer_id, transaction_id, points, earned_at, expires_at)
+          VALUES (?, ?, ?, ?, ?, ?)`,
+        [
+          randomUUID(),
+          transaction.customer_id,
+          transaction.id,
+          points,
+          earnedDate.toISOString().slice(0, 10),
+          expiresDate.toISOString().slice(0, 10),
+        ]
+      );
+    }
+  }
+
+  if (status !== 'DONE') {
+    await pool.query('DELETE FROM points WHERE transaction_id = ?', [transaction.id]);
+  }
+
   return res.json(transaction);
 }));
 

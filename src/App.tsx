@@ -11,6 +11,7 @@ import { Kategori } from './pages/admin/Kategori';
 import { Karyawan } from './pages/admin/Karyawan';
 import { Customer } from './pages/admin/Customer';
 import { Laporan } from './pages/admin/Laporan';
+import { PembelianMember } from './pages/admin/PembelianMember';
 import { KaryawanDashboard } from './pages/karyawan/Dashboard';
 import { PekerjaanSaya } from './pages/karyawan/Pekerjaan';
 import { CustomerDashboard } from './pages/customer/Dashboard';
@@ -88,6 +89,16 @@ export default function App() {
                 <ProtectedRoute allowedRoles={['ADMIN']}>
                   <Layout>
                     <Kategori />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/membership"
+              element={
+                <ProtectedRoute allowedRoles={['ADMIN']}>
+                  <Layout>
+                    <PembelianMember />
                   </Layout>
                 </ProtectedRoute>
               }

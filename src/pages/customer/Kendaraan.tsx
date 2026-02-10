@@ -9,6 +9,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../hooks/useToast';
 import { Modal } from '../../components/ui/Modal';
 import { Vehicle } from '../../types';
+import { getMembershipTier, MembershipTierKey } from '../../lib/membership';
+import { formatCurrency } from '../../lib/utils';
 
 const vehicleSchema = z.object({
   car_brand: z.string().min(1, 'Tipe kendaraan wajib diisi'),
@@ -31,6 +33,16 @@ export function DaftarKendaraanCustomer() {
     queryFn: () => api.vehicles.getAll({ customerId: user?.id }),
     enabled: Boolean(user?.id),
   });
+
+  const { data: memberships = [] } = useQuery({
+    queryKey: ['memberships', 'customer', user?.id],
+    queryFn: () => api.memberships.getAll({ customerId: user?.id }),
+    enabled: Boolean(user?.id),
+  });
+
+  const membershipByVehicle = new Map<string, MembershipTierKey>(
+    memberships.map((membership) => [membership.vehicle_id, membership.tier])
+  );
 
   const {
     register,
@@ -129,64 +141,85 @@ export function DaftarKendaraanCustomer() {
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-        <div className="overflow-x-auto">
-          {isLoading ? (
-            <div className="p-12 text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            </div>
-          ) : vehicles.length === 0 ? (
-            <div className="p-12 text-center">
-              <Car className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-600">Belum ada kendaraan terdaftar</p>
-            </div>
-          ) : (
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Tipe Kendaraan
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Nomor Plat
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Aksi
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {vehicles.map((vehicle) => (
-                  <tr key={vehicle.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {vehicle.car_brand}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900">
-                      {vehicle.plate_number}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => handleEdit(vehicle)}
-                          className="p-1 hover:bg-yellow-50 text-yellow-600 rounded transition"
-                          title="Edit"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(vehicle.id)}
-                          className="p-1 hover:bg-red-50 text-red-600 rounded transition"
-                          title="Hapus"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+        {isLoading ? (
+          <div className="p-12 text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          </div>
+        ) : vehicles.length === 0 ? (
+          <div className="p-12 text-center">
+            <Car className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+            <p className="text-gray-600">Belum ada kendaraan terdaftar</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 p-6">
+            {vehicles.map((vehicle) => {
+              const membershipKey = membershipByVehicle.get(vehicle.id) ?? 'BASIC';
+              const tier = getMembershipTier(membershipKey);
+
+              return (
+                <div
+                  key={vehicle.id}
+                  className="border border-gray-200 rounded-xl p-5 hover:border-blue-200 transition"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900">{vehicle.car_brand}</h3>
+                      <p className="text-sm text-gray-600 font-mono">{vehicle.plate_number}</p>
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700">
+                          {tier.label}
+                        </span>
+                        {tier.price > 0 && (
+                          <span className="text-xs text-gray-500">
+                            {formatCurrency(tier.price)}/bulan
+                          </span>
+                        )}
+                        {tier.key === 'BASIC' && (
+                          <span className="text-xs text-gray-500">
+                            Default, upgrade via kasir
+                          </span>
+                        )}
                       </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleEdit(vehicle)}
+                        className="p-1 hover:bg-yellow-50 text-yellow-600 rounded transition"
+                        title="Edit"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(vehicle.id)}
+                        className="p-1 hover:bg-red-50 text-red-600 rounded transition"
+                        title="Hapus"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 border-t border-gray-100 pt-4">
+                    <p className="text-sm font-semibold text-gray-900 mb-2">
+                      Benefit Membership
+                    </p>
+                    <ul className="space-y-2 text-sm text-gray-600">
+                      {tier.highlights.map((benefit) => (
+                        <li key={benefit} className="flex items-start gap-2">
+                          <span className="mt-1 h-2 w-2 rounded-full bg-emerald-500"></span>
+                          <span>{benefit}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    {tier.note && (
+                      <p className="text-xs text-gray-500 mt-3">{tier.note}</p>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       <Modal isOpen={showAddModal} onClose={() => setShowAddModal(false)} title="Tambah Kendaraan">
