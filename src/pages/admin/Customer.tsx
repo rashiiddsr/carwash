@@ -7,7 +7,7 @@ import { api } from '../../lib/api';
 import { formatDate } from '../../lib/utils';
 import { useToast } from '../../hooks/useToast';
 import { Modal } from '../../components/ui/Modal';
-import { Plus, Edit, Trash2, Users, Key, Car } from 'lucide-react';
+import { Plus, Edit, Trash2, Users, Key, Car, Info } from 'lucide-react';
 import { User, Vehicle } from '../../types';
 
 const customerSchema = z.object({
@@ -33,6 +33,7 @@ export function Customer() {
   const [showVehicleModal, setShowVehicleModal] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
   const [selectedCustomerForVehicles, setSelectedCustomerForVehicles] = useState<User | null>(null);
+  const [showInfoModal, setShowInfoModal] = useState(false);
 
   const queryClient = useQueryClient();
   const { showSuccess, showError, ToastComponent } = useToast();
@@ -186,6 +187,11 @@ export function Customer() {
     setShowVehicleModal(true);
   };
 
+  const handleInfo = (customer: User) => {
+    setSelectedCustomer(customer);
+    setShowInfoModal(true);
+  };
+
   const handleResetPassword = (customer: User) => {
     setSelectedCustomer(customer);
     reset({ name: '', phone: '', password: '' });
@@ -308,6 +314,13 @@ export function Customer() {
                           <Car className="w-4 h-4" />
                         </button>
                         <button
+                          onClick={() => handleInfo(customer)}
+                          className="p-1 hover:bg-indigo-50 text-indigo-600 rounded transition"
+                          title="Info"
+                        >
+                          <Info className="w-4 h-4" />
+                        </button>
+                        <button
                           onClick={() => handleResetPassword(customer)}
                           className="p-1 hover:bg-blue-50 text-blue-600 rounded transition"
                           title="Reset Password"
@@ -330,6 +343,22 @@ export function Customer() {
           )}
         </div>
       </div>
+
+      <Modal
+        isOpen={showInfoModal}
+        onClose={() => {
+          setShowInfoModal(false);
+          setSelectedCustomer(null);
+        }}
+        title="Info Customer"
+      >
+        <div className="space-y-3 text-sm text-gray-700">
+          <p><span className="font-medium">Nama:</span> {selectedCustomer?.name}</p>
+          <p><span className="font-medium">Nomor HP:</span> {selectedCustomer?.phone}</p>
+          <p><span className="font-medium">Dibuat:</span> {selectedCustomer ? formatDate(selectedCustomer.created_at) : '-'}</p>
+          <p><span className="font-medium">Terakhir update:</span> {selectedCustomer ? formatDate(selectedCustomer.updated_at) : '-'}</p>
+        </div>
+      </Modal>
 
       <Modal isOpen={showAddModal} onClose={() => setShowAddModal(false)} title="Tambah Customer">
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">

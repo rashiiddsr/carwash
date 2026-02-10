@@ -7,7 +7,7 @@ import { api } from '../../lib/api';
 import { formatDate } from '../../lib/utils';
 import { useToast } from '../../hooks/useToast';
 import { Modal } from '../../components/ui/Modal';
-import { Plus, Edit, Trash2, Users, Key } from 'lucide-react';
+import { Plus, Edit, Trash2, Users, Key, Info } from 'lucide-react';
 import { User } from '../../types';
 
 const karyawanSchema = z.object({
@@ -23,6 +23,7 @@ export function Karyawan() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showResetPasswordModal, setShowResetPasswordModal] = useState(false);
   const [selectedKaryawan, setSelectedKaryawan] = useState<User | null>(null);
+  const [showInfoModal, setShowInfoModal] = useState(false);
 
   const queryClient = useQueryClient();
   const { showSuccess, showError, ToastComponent } = useToast();
@@ -109,6 +110,11 @@ export function Karyawan() {
     setSelectedKaryawan(karyawan);
     reset({ name: karyawan.name, phone: karyawan.phone, password: '' });
     setShowEditModal(true);
+  };
+
+  const handleInfo = (karyawan: User) => {
+    setSelectedKaryawan(karyawan);
+    setShowInfoModal(true);
   };
 
   const handleResetPassword = (karyawan: User) => {
@@ -206,6 +212,13 @@ export function Karyawan() {
                           <Edit className="w-4 h-4" />
                         </button>
                         <button
+                          onClick={() => handleInfo(karyawan)}
+                          className="p-1 hover:bg-indigo-50 text-indigo-600 rounded transition"
+                          title="Info"
+                        >
+                          <Info className="w-4 h-4" />
+                        </button>
+                        <button
                           onClick={() => handleResetPassword(karyawan)}
                           className="p-1 hover:bg-blue-50 text-blue-600 rounded transition"
                           title="Reset Password"
@@ -228,6 +241,23 @@ export function Karyawan() {
           )}
         </div>
       </div>
+
+
+      <Modal
+        isOpen={showInfoModal}
+        onClose={() => {
+          setShowInfoModal(false);
+          setSelectedKaryawan(null);
+        }}
+        title="Info Karyawan"
+      >
+        <div className="space-y-3 text-sm text-gray-700">
+          <p><span className="font-medium">Nama:</span> {selectedKaryawan?.name}</p>
+          <p><span className="font-medium">Nomor HP:</span> {selectedKaryawan?.phone}</p>
+          <p><span className="font-medium">Dibuat:</span> {selectedKaryawan ? formatDate(selectedKaryawan.created_at) : '-'}</p>
+          <p><span className="font-medium">Terakhir update:</span> {selectedKaryawan ? formatDate(selectedKaryawan.updated_at) : '-'}</p>
+        </div>
+      </Modal>
 
       <Modal isOpen={showAddModal} onClose={() => setShowAddModal(false)} title="Tambah Karyawan">
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
