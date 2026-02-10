@@ -348,6 +348,12 @@ app.post('/users', asyncHandler(async (req, res) => {
 app.put('/users/:id', asyncHandler(async (req, res) => {
   const { name, phone } = req.body;
   const { id } = req.params;
+  const requesterRole = req.user?.role;
+  const requesterId = req.user?.userId;
+
+  if (requesterRole !== 'ADMIN' && requesterId !== id) {
+    return res.status(403).json({ message: 'Forbidden' });
+  }
 
   if (!name || !phone) {
     return res.status(400).json({ message: 'Name and phone are required' });
@@ -369,6 +375,12 @@ app.put('/users/:id', asyncHandler(async (req, res) => {
 app.put('/users/:id/reset-password', asyncHandler(async (req, res) => {
   const { password } = req.body;
   const { id } = req.params;
+  const requesterRole = req.user?.role;
+  const requesterId = req.user?.userId;
+
+  if (requesterRole !== 'ADMIN' && requesterId !== id) {
+    return res.status(403).json({ message: 'Forbidden' });
+  }
 
   if (!password) {
     return res.status(400).json({ message: 'Password is required' });

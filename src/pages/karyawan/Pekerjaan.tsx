@@ -74,7 +74,6 @@ export function PekerjaanSaya() {
               <option value="">Semua Status</option>
               <option value="QUEUED">Antri</option>
               <option value="WASHING">Dicuci</option>
-              <option value="FINISHING">Finishing</option>
               <option value="DONE">Selesai</option>
             </select>
           </div>
@@ -147,8 +146,6 @@ export function PekerjaanSaya() {
                             ? 'bg-gray-100 text-gray-700'
                             : transaction.status === 'WASHING'
                             ? 'bg-blue-100 text-blue-700'
-                            : transaction.status === 'FINISHING'
-                            ? 'bg-yellow-100 text-yellow-700'
                             : 'bg-green-100 text-green-700'
                         }`}
                       >
@@ -156,8 +153,6 @@ export function PekerjaanSaya() {
                           ? 'Antri'
                           : transaction.status === 'WASHING'
                           ? 'Dicuci'
-                          : transaction.status === 'FINISHING'
-                          ? 'Finishing'
                           : 'Selesai'}
                       </span>
                     </td>
@@ -169,7 +164,6 @@ export function PekerjaanSaya() {
                       >
                         <option value="QUEUED">Antri</option>
                         <option value="WASHING">Dicuci</option>
-                        <option value="FINISHING">Finishing</option>
                         <option value="DONE">Selesai</option>
                       </select>
                     </td>

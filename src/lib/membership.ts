@@ -20,7 +20,7 @@ export const MEMBERSHIP_TIERS: MembershipTier[] = [
     label: 'Basic',
     price: 0,
     description: 'Default untuk setiap mobil',
-    highlights: ['8x cuci gratis 1x cuci reguler', 'Mendapatkan 1 poin setiap cuci'],
+    highlights: ['8x cuci gratis 1x cuci', 'Mendapatkan 1 poin setiap cuci'],
   },
   {
     key: 'BRONZE',
@@ -41,6 +41,7 @@ export const MEMBERSHIP_TIERS: MembershipTier[] = [
     description: 'Benefit rutin tiap bulan',
     highlights: [
       'Diskon 10% semua layanan',
+      '8x cuci gratis 1x cuci',
       'Gratis cuci 1x per bulan',
       'Mendapatkan 1.5 poin setiap cuci',
       'Gratis pengecekan oli, air radiator & air wiper',
@@ -53,9 +54,10 @@ export const MEMBERSHIP_TIERS: MembershipTier[] = [
     description: 'Lebih banyak layanan premium',
     highlights: [
       'Diskon 15% semua layanan',
+      '8x cuci gratis 1x cuci',
       'Gratis cuci 4x per bulan',
       'Mendapatkan 2.5 poin setiap cuci',
-      'Garansi 24 jam (cuci ulang ringan) kalau kehujanan*',
+      'Garansi 24 jam (cuci ulang express) kalau kehujanan*',
       'Gratis antar jemput',
       'Gratis pengecekan oli, air radiator & air wiper',
     ],
@@ -67,9 +69,10 @@ export const MEMBERSHIP_TIERS: MembershipTier[] = [
     description: 'Prioritas layanan & benefit tertinggi',
     highlights: [
       'Diskon 20% semua layanan',
+      '8x cuci gratis 1x cuci',
       'Gratis 5x cuci per bulan',
       'Mendapatkan 3 poin setiap cuci',
-      'Garansi 24 jam (cuci ulang ringan) kalau kehujanan*',
+      'Garansi 24 jam (cuci ulang express) kalau kehujanan*',
       'Gratis antar jemput',
       'Prioritas Lane 1 Hydrolik (reservasi 1 jam sebelumnya)',
       'Gratis pengecekan oli, air radiator & air wiper',

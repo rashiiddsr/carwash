@@ -7,7 +7,6 @@ import {
   ShoppingCart,
   Clock,
   Droplets,
-  Sparkles,
   CheckCircle,
 } from 'lucide-react';
 
@@ -41,7 +40,6 @@ function StatusBadge({ status }: { status: string }) {
   const config = {
     QUEUED: { label: 'Antri', class: 'bg-gray-100 text-gray-700' },
     WASHING: { label: 'Dicuci', class: 'bg-blue-100 text-blue-700' },
-    FINISHING: { label: 'Finishing', class: 'bg-yellow-100 text-yellow-700' },
     DONE: { label: 'Selesai', class: 'bg-green-100 text-green-700' },
   };
 
@@ -72,7 +70,6 @@ export function AdminDashboard() {
   const totalRevenue = transactions.reduce((sum, t) => sum + t.price, 0);
   const queuedCount = transactions.filter((t) => t.status === 'QUEUED').length;
   const washingCount = transactions.filter((t) => t.status === 'WASHING').length;
-  const finishingCount = transactions.filter((t) => t.status === 'FINISHING').length;
   const doneCount = transactions.filter((t) => t.status === 'DONE').length;
 
   const recentTransactions = transactions.slice(0, 5);
@@ -121,12 +118,6 @@ export function AdminDashboard() {
           value={washingCount}
           icon={<Droplets className="w-6 h-6 text-blue-600" />}
           color="bg-blue-50"
-        />
-        <StatCard
-          title="Finishing"
-          value={finishingCount}
-          icon={<Sparkles className="w-6 h-6 text-yellow-600" />}
-          color="bg-yellow-50"
         />
         <StatCard
           title="Selesai"

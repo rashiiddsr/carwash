@@ -136,7 +136,6 @@ export function Laporan() {
               <option value="">Semua Status</option>
               <option value="QUEUED">Antri</option>
               <option value="WASHING">Dicuci</option>
-              <option value="FINISHING">Finishing</option>
               <option value="DONE">Selesai</option>
             </select>
           </div>
@@ -313,12 +312,10 @@ export function Laporan() {
                       <span className={`px-3 py-1 rounded-full text-xs font-medium ${
                         transaction.status === 'DONE' ? 'bg-green-100 text-green-700' :
                         transaction.status === 'WASHING' ? 'bg-blue-100 text-blue-700' :
-                        transaction.status === 'FINISHING' ? 'bg-yellow-100 text-yellow-700' :
                         'bg-gray-100 text-gray-700'
                       }`}>
                         {transaction.status === 'QUEUED' ? 'Antri' :
-                         transaction.status === 'WASHING' ? 'Dicuci' :
-                         transaction.status === 'FINISHING' ? 'Finishing' : 'Selesai'}
+                         transaction.status === 'WASHING' ? 'Dicuci' : 'Selesai'}
                       </span>
                     </td>
                   </tr>
