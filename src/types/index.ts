@@ -28,6 +28,12 @@ export interface Transaction {
   plate_number: string;
   employee_id: string;
   price: number;
+  base_price?: number;
+  discount_percent?: number;
+  discount_amount?: number;
+  is_membership_quota_free?: boolean;
+  is_loyalty_free?: boolean;
+  is_rain_guarantee_free?: boolean;
   status: TransactionStatus;
   notes: string | null;
   created_at: string;
@@ -80,4 +86,16 @@ export interface DashboardStats {
   queuedCount: number;
   washingCount: number;
   doneCount: number;
+}
+
+
+export interface TransactionPricingPreview {
+  tier: Membership['tier'];
+  base_price: number;
+  discount_percent: number;
+  discount_amount: number;
+  is_membership_quota_free: boolean;
+  is_loyalty_free: boolean;
+  is_rain_guarantee_free: boolean;
+  final_price: number;
 }
