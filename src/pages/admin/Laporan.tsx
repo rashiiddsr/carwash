@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../lib/api';
-import { getTodayDate, formatCurrency, formatDate, formatTime } from '../../lib/utils';
+import { getTodayDate, formatCurrency, formatDate, formatTime, toSafeNumber } from '../../lib/utils';
 import { Filter, Download, FileText } from 'lucide-react';
 
 export function Laporan() {
@@ -34,7 +34,7 @@ export function Laporan() {
   });
 
   const totalTransactions = transactions.length;
-  const totalRevenue = transactions.reduce((sum, t) => sum + t.price, 0);
+  const totalRevenue = transactions.reduce((sum, t) => sum + toSafeNumber(t.price), 0);
   const avgPerTransaction = totalTransactions > 0 ? totalRevenue / totalTransactions : 0;
 
   const categoryCounts = transactions.reduce((acc, t) => {
@@ -55,7 +55,7 @@ export function Laporan() {
 
   const dailyRevenue = transactions.reduce((acc, t) => {
     const date = t.trx_date;
-    acc[date] = (acc[date] || 0) + t.price;
+    acc[date] = (acc[date] || 0) + toSafeNumber(t.price);
     return acc;
   }, {} as Record<string, number>);
 
@@ -69,7 +69,7 @@ export function Laporan() {
       t.car_brand,
       t.plate_number,
       t.employee?.name || '',
-      t.price.toString(),
+      toSafeNumber(t.price).toString(),
       t.status,
     ]);
 

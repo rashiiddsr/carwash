@@ -78,6 +78,18 @@ export function PembelianMember() {
   const extraVehicles = watch('extraVehicles');
   const extraVehicleIds = watch('extraVehicleIds');
 
+
+  const { data: activeMemberships = [] } = useQuery({
+    queryKey: ['memberships', 'active', selectedVehicleId],
+    queryFn: () =>
+      api.memberships.getAll({
+        vehicleId: selectedVehicleId || undefined,
+      }),
+    enabled: Boolean(selectedVehicleId),
+  });
+
+  const activeMembership = activeMemberships[0] || null;
+
   const customerVehicles = useMemo(
     () => vehicles.filter((vehicle) => vehicle.customer_id === selectedCustomerId),
     [vehicles, selectedCustomerId]
@@ -127,6 +139,16 @@ export function PembelianMember() {
   const onSubmit = (data: FormValues) => {
     if (data.membership === 'PLATINUM_VIP' && data.extraVehicles !== data.extraVehicleIds.length) {
       showError('Pilih kendaraan tambahan sesuai jumlah tambahan kendaraan.');
+      return;
+    }
+
+    if (
+      activeMembership &&
+      activeMembership.tier !== 'BASIC' &&
+      !window.confirm(
+        `Kendaraan ini masih memiliki membership ${getMembershipTier(activeMembership.tier).label} aktif sampai ${formatDate(`${activeMembership.ends_at}T00:00:00`)}. Lanjutkan? Membership aktif sebelumnya akan ditukar dengan paket baru.`
+      )
+    ) {
       return;
     }
 
@@ -293,6 +315,16 @@ export function PembelianMember() {
               <p className="text-xs text-red-500 mt-1">{errors.vehicleId.message}</p>
             )}
           </div>
+
+
+          {activeMembership && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 mt-2">
+              Kendaraan ini masih memiliki membership{' '}
+              <span className="font-semibold">{getMembershipTier(activeMembership.tier).label}</span>{' '}
+              aktif hingga {formatDate(`${activeMembership.ends_at}T00:00:00`)}. Jika lanjut beli,
+              membership aktif sebelumnya akan ditukar dengan paket baru.
+            </div>
+          )}
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Paket Membership</label>

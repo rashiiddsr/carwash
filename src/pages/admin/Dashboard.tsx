@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../lib/api';
-import { getTodayDate, formatCurrency, formatTime, formatDate } from '../../lib/utils';
+import { getTodayDate, formatCurrency, formatTime, formatDate, toSafeNumber } from '../../lib/utils';
 import { calculatePointSummary, getDaysRemaining, POINT_EXPIRY_DAYS } from '../../lib/points';
 import {
   DollarSign,
@@ -67,7 +67,7 @@ export function AdminDashboard() {
   });
 
   const totalTransactions = transactions.length;
-  const totalRevenue = transactions.reduce((sum, t) => sum + t.price, 0);
+  const totalRevenue = transactions.reduce((sum, t) => sum + toSafeNumber(t.price), 0);
   const queuedCount = transactions.filter((t) => t.status === 'QUEUED').length;
   const washingCount = transactions.filter((t) => t.status === 'WASHING').length;
   const doneCount = transactions.filter((t) => t.status === 'DONE').length;
