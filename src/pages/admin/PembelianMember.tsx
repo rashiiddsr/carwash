@@ -21,6 +21,7 @@ const formSchema = z.object({
   membership: z.enum(['BRONZE', 'SILVER', 'GOLD', 'PLATINUM_VIP']),
   durationMonths: z.number().min(1, 'Minimal 1 bulan'),
   extraVehicles: z.number().min(0),
+  extraVehicleIds: z.array(z.string()),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -56,6 +57,7 @@ export function PembelianMember() {
     reset,
     watch,
     setValue,
+    getValues,
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -65,13 +67,16 @@ export function PembelianMember() {
       membership: 'BRONZE',
       customerId: '',
       vehicleId: '',
+      extraVehicleIds: [],
     },
   });
 
   const selectedCustomerId = watch('customerId');
   const selectedMembership = watch('membership');
   const durationMonths = watch('durationMonths');
+  const selectedVehicleId = watch('vehicleId');
   const extraVehicles = watch('extraVehicles');
+  const extraVehicleIds = watch('extraVehicleIds');
 
   const customerVehicles = useMemo(
     () => vehicles.filter((vehicle) => vehicle.customer_id === selectedCustomerId),
@@ -99,6 +104,7 @@ export function PembelianMember() {
         tier: data.membership,
         duration_months: data.durationMonths,
         extra_vehicles: data.membership === 'PLATINUM_VIP' ? data.extraVehicles : 0,
+        extra_vehicle_ids: data.membership === 'PLATINUM_VIP' ? data.extraVehicleIds : [],
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['memberships'] });
@@ -110,6 +116,7 @@ export function PembelianMember() {
         membership: 'BRONZE',
         customerId: '',
         vehicleId: '',
+        extraVehicleIds: [],
       });
     },
     onError: (error) => {
@@ -118,7 +125,27 @@ export function PembelianMember() {
   });
 
   const onSubmit = (data: FormValues) => {
+    if (data.membership === 'PLATINUM_VIP' && data.extraVehicles !== data.extraVehicleIds.length) {
+      showError('Pilih kendaraan tambahan sesuai jumlah tambahan kendaraan.');
+      return;
+    }
+
     createMembership.mutate(data);
+  };
+
+  const selectableExtraVehicles = useMemo(
+    () => customerVehicles.filter((vehicle) => vehicle.id !== selectedVehicleId),
+    [customerVehicles, selectedVehicleId]
+  );
+
+  const toggleExtraVehicleSelection = (vehicleId: string) => {
+    const selectedIds = getValues('extraVehicleIds');
+    const exists = selectedIds.includes(vehicleId);
+    const updated = exists
+      ? selectedIds.filter((id) => id !== vehicleId)
+      : [...selectedIds, vehicleId];
+    setValue('extraVehicleIds', updated);
+    setValue('extraVehicles', updated.length);
   };
 
   const vehicleMap = useMemo(
@@ -231,8 +258,10 @@ export function PembelianMember() {
               onChange={(event) => {
                 setValue('customerId', event.target.value);
                 setValue('vehicleId', '');
+                setValue('extraVehicles', 0);
+                setValue('extraVehicleIds', []);
               }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none disabled:bg-gray-100"
             >
               <option value="">Pilih customer</option>
               {customers.map((customer) => (
@@ -269,6 +298,14 @@ export function PembelianMember() {
             <label className="block text-sm font-medium text-gray-700 mb-2">Paket Membership</label>
             <select
               {...register('membership')}
+              onChange={(event) => {
+                const selectedTier = event.target.value as FormValues['membership'];
+                setValue('membership', selectedTier);
+                if (selectedTier !== 'PLATINUM_VIP') {
+                  setValue('extraVehicles', 0);
+                  setValue('extraVehicleIds', []);
+                }
+              }}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
             >
               {availableMemberships.map((tier) => (
@@ -300,11 +337,44 @@ export function PembelianMember() {
                 {...register('extraVehicles', { valueAsNumber: true })}
                 type="number"
                 min={0}
+                disabled={selectedMembership !== 'PLATINUM_VIP'}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
               />
               <p className="text-xs text-gray-500 mt-1">Rp149.000 per kendaraan tambahan per bulan.</p>
             </div>
           </div>
+
+          {selectedMembership === 'PLATINUM_VIP' && extraVehicles > 0 && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Pilih kendaraan tambahan Platinum VIP
+              </label>
+              <div className="max-h-44 overflow-y-auto border border-gray-200 rounded-lg divide-y divide-gray-100">
+                {selectableExtraVehicles.length === 0 ? (
+                  <div className="px-3 py-2 text-sm text-gray-500">
+                    Tidak ada kendaraan lain yang bisa dipilih sebagai tambahan.
+                  </div>
+                ) : (
+                  selectableExtraVehicles.map((vehicle) => (
+                    <label key={vehicle.id} className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700">
+                      <input
+                        type="checkbox"
+                        checked={extraVehicleIds.includes(vehicle.id)}
+                        onChange={() => toggleExtraVehicleSelection(vehicle.id)}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span>
+                        {vehicle.car_brand} - {vehicle.plate_number}
+                      </span>
+                    </label>
+                  ))
+                )}
+              </div>
+              <p className="text-xs mt-1 text-gray-500">
+                Terpilih {extraVehicleIds.length} dari {extraVehicles} kendaraan tambahan.
+              </p>
+            </div>
+          )}
 
           <div className="rounded-lg border border-blue-100 bg-blue-50 p-4 space-y-2 text-sm">
             <div className="flex items-center gap-2 text-blue-700 font-semibold">

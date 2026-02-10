@@ -532,7 +532,14 @@ app.get('/memberships', asyncHandler(async (req, res) => {
 }));
 
 app.post('/memberships', asyncHandler(async (req, res) => {
-  const { vehicle_id, tier, duration_months, starts_at, extra_vehicles } = req.body;
+  const {
+    vehicle_id,
+    tier,
+    duration_months,
+    starts_at,
+    extra_vehicles,
+    extra_vehicle_ids,
+  } = req.body;
 
   if (!vehicle_id || !tier || !duration_months) {
     return res.status(400).json({ message: 'Missing required fields' });
@@ -543,11 +550,53 @@ app.post('/memberships', asyncHandler(async (req, res) => {
     return res.status(404).json({ message: 'Vehicle not found' });
   }
 
+  const parsedExtraVehicleIds = Array.isArray(extra_vehicle_ids)
+    ? Array.from(new Set(extra_vehicle_ids.filter(Boolean)))
+    : [];
+
+  if (tier === 'PLATINUM_VIP' && Number(extra_vehicles || 0) !== parsedExtraVehicleIds.length) {
+    return res.status(400).json({
+      message: 'Jumlah kendaraan tambahan harus sesuai dengan kendaraan yang dipilih',
+    });
+  }
+
+  if (tier !== 'PLATINUM_VIP' && parsedExtraVehicleIds.length > 0) {
+    return res.status(400).json({
+      message: 'Kendaraan tambahan hanya tersedia untuk Platinum VIP',
+    });
+  }
+
+  if (parsedExtraVehicleIds.includes(vehicle_id)) {
+    return res.status(400).json({
+      message: 'Kendaraan utama tidak boleh dipilih sebagai kendaraan tambahan',
+    });
+  }
+
+  const extraVehicles = [];
+  for (const extraVehicleId of parsedExtraVehicleIds) {
+    const extraVehicle = await fetchVehicleById(extraVehicleId);
+    if (!extraVehicle) {
+      return res.status(404).json({ message: `Kendaraan tambahan tidak ditemukan: ${extraVehicleId}` });
+    }
+
+    if (extraVehicle.customer_id !== vehicle.customer_id) {
+      return res.status(400).json({
+        message: 'Kendaraan tambahan harus milik customer yang sama',
+      });
+    }
+
+    extraVehicles.push(extraVehicle);
+  }
+
   const startDate = starts_at ? new Date(starts_at) : new Date();
   const endDate = new Date(startDate);
   endDate.setMonth(endDate.getMonth() + Number(duration_months));
 
   const membershipId = randomUUID();
+  const resolvedExtraVehicles = tier === 'PLATINUM_VIP' ? parsedExtraVehicleIds.length : 0;
+  const startDateString = startDate.toISOString().slice(0, 10);
+  const endDateString = endDate.toISOString().slice(0, 10);
+
   await pool.query(
     `INSERT INTO memberships
       (id, vehicle_id, tier, starts_at, ends_at, duration_months, extra_vehicles)
@@ -556,12 +605,29 @@ app.post('/memberships', asyncHandler(async (req, res) => {
       membershipId,
       vehicle_id,
       tier,
-      startDate.toISOString().slice(0, 10),
-      endDate.toISOString().slice(0, 10),
+      startDateString,
+      endDateString,
       Number(duration_months),
-      Number(extra_vehicles || 0),
+      resolvedExtraVehicles,
     ]
   );
+
+  for (const extraVehicle of extraVehicles) {
+    await pool.query(
+      `INSERT INTO memberships
+        (id, vehicle_id, tier, starts_at, ends_at, duration_months, extra_vehicles)
+        VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [
+        randomUUID(),
+        extraVehicle.id,
+        tier,
+        startDateString,
+        endDateString,
+        Number(duration_months),
+        0,
+      ]
+    );
+  }
 
   const [rows] = await pool.query(
     `SELECT id, vehicle_id, tier, starts_at, ends_at, duration_months, extra_vehicles, created_at, updated_at
