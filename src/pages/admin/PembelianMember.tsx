@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Plus, Crown } from 'lucide-react';
+import { Plus, Crown, Printer } from 'lucide-react';
 import { api } from '../../lib/api';
 import {
   EXTRA_VEHICLE_PLATINUM_FEE,
@@ -14,6 +14,7 @@ import {
 import { formatCurrency, formatDate } from '../../lib/utils';
 import { useToast } from '../../hooks/useToast';
 import { Modal } from '../../components/ui/Modal';
+import { printMembershipReceipt } from '../../lib/receipt';
 
 const formSchema = z.object({
   customerId: z.string().min(1, 'Customer wajib dipilih'),
@@ -49,6 +50,11 @@ export function PembelianMember() {
         includeExpired: true,
         customerId: customerFilter || undefined,
       }),
+  });
+
+  const { data: companyProfile } = useQuery({
+    queryKey: ['company-profile'],
+    queryFn: () => api.company.get(),
   });
 
   const {
@@ -180,6 +186,27 @@ export function PembelianMember() {
     [customers]
   );
 
+  const handlePrintReceipt = (purchase: (typeof purchases)[number]) => {
+    if (!companyProfile) {
+      showError('Profil perusahaan belum tersedia.');
+      return;
+    }
+
+    const vehicle = vehicleMap.get(purchase.vehicle_id);
+    const customer = vehicle ? customerMap.get(vehicle.customer_id) : undefined;
+
+    try {
+      printMembershipReceipt({
+        membership: purchase,
+        company: companyProfile,
+        vehicle,
+        customerName: customer?.name,
+      });
+    } catch (error) {
+      showError(error instanceof Error ? error.message : 'Gagal mencetak struk membership');
+    }
+  };
+
   return (
     <div className="space-y-6">
       {ToastComponent}
@@ -237,6 +264,8 @@ export function PembelianMember() {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Mulai</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Expired</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Durasi</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ID Transaksi</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Aksi</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
@@ -257,6 +286,20 @@ export function PembelianMember() {
                       <td className="px-6 py-4 text-sm text-gray-700">{formatDate(`${purchase.starts_at}T00:00:00`)}</td>
                       <td className="px-6 py-4 text-sm text-gray-700">{formatDate(`${purchase.ends_at}T00:00:00`)}</td>
                       <td className="px-6 py-4 text-sm text-gray-700">{purchase.duration_months} bulan</td>
+                      <td className="px-6 py-4 text-sm text-gray-700 font-mono">{purchase.transaction_code}</td>
+                      <td className="px-6 py-4 text-sm text-gray-700">
+                        {purchase.tier === 'PLATINUM_VIP' ? (
+                          <button
+                            onClick={() => handlePrintReceipt(purchase)}
+                            className="p-1 hover:bg-green-50 text-green-600 rounded transition"
+                            title="Cetak struk membership premium 58mm"
+                          >
+                            <Printer className="w-4 h-4" />
+                          </button>
+                        ) : (
+                          <span className="text-xs text-gray-400">-</span>
+                        )}
+                      </td>
                     </tr>
                   );
                 })}
