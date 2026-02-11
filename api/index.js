@@ -103,14 +103,12 @@ const buildVehicle = (row) => ({
 
 const buildMembership = (row) => ({
   id: row.id,
-  transaction_code: row.transaction_code,
   vehicle_id: row.vehicle_id,
   tier: row.tier,
   starts_at: row.starts_at,
   ends_at: row.ends_at,
   duration_months: row.duration_months,
   extra_vehicles: row.extra_vehicles,
-  total_price: Number(row.total_price) || 0,
   created_at: row.created_at,
   updated_at: row.updated_at,
 });
@@ -164,22 +162,6 @@ const REGULAR_CATEGORY_NAMES = new Set([
 
 const EXPRESS_CATEGORY_NAME = 'Cuci Express';
 
-const MEMBERSHIP_BASE_PRICE = {
-  BASIC: 0,
-  BRONZE: 29000,
-  SILVER: 49000,
-  GOLD: 149000,
-  PLATINUM_VIP: 249000,
-};
-
-const EXTRA_VEHICLE_PLATINUM_FEE = 149000;
-
-const createTransactionCode = (prefix) => {
-  const datePart = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-  const randomPart = Math.random().toString(36).slice(2, 8).toUpperCase();
-  return `${prefix}-${datePart}-${randomPart}`;
-};
-
 const POINT_EXPIRY_DAYS = 365;
 
 const DEFAULT_CATEGORIES = [
@@ -194,7 +176,6 @@ const DEFAULT_CATEGORIES = [
 
 const buildTransaction = (row) => ({
   id: row.id,
-  transaction_code: row.transaction_code,
   trx_date: row.trx_date,
   customer_id: row.customer_id,
   category_id: row.category_id,
@@ -306,7 +287,7 @@ const fetchVehicleById = async (id) => {
 
 const fetchActiveMembershipByVehicle = async (vehicleId, referenceDate) => {
   const [rows] = await pool.query(
-    `SELECT id, transaction_code, vehicle_id, tier, starts_at, ends_at, duration_months, extra_vehicles, total_price, created_at, updated_at
+    `SELECT id, vehicle_id, tier, starts_at, ends_at, duration_months, extra_vehicles, created_at, updated_at
      FROM memberships
      WHERE vehicle_id = ? AND ends_at >= ?
      ORDER BY starts_at DESC
@@ -349,21 +330,6 @@ const ensureDefaultCategories = async () => {
       [category.name, category.price, category.name]
     );
   }
-};
-
-const ensureTransactionReceiptColumns = async () => {
-  await pool.query('ALTER TABLE transactions ADD COLUMN IF NOT EXISTS transaction_code VARCHAR(40) NULL AFTER id');
-  await pool.query("UPDATE transactions SET transaction_code = CONCAT('CW-', DATE_FORMAT(created_at, '%Y%m%d'), '-', UPPER(LEFT(REPLACE(id, '-', ''), 6))) WHERE transaction_code IS NULL");
-  await pool.query('ALTER TABLE transactions MODIFY COLUMN transaction_code VARCHAR(40) NOT NULL');
-  await pool.query('ALTER TABLE transactions ADD UNIQUE INDEX IF NOT EXISTS idx_transactions_transaction_code (transaction_code)');
-};
-
-const ensureMembershipReceiptColumns = async () => {
-  await pool.query('ALTER TABLE memberships ADD COLUMN IF NOT EXISTS transaction_code VARCHAR(40) NULL AFTER id');
-  await pool.query('ALTER TABLE memberships ADD COLUMN IF NOT EXISTS total_price DECIMAL(12,2) NOT NULL DEFAULT 0 AFTER extra_vehicles');
-  await pool.query("UPDATE memberships SET transaction_code = CONCAT('MBR-', DATE_FORMAT(created_at, '%Y%m%d'), '-', UPPER(LEFT(REPLACE(id, '-', ''), 6))) WHERE transaction_code IS NULL");
-  await pool.query('ALTER TABLE memberships MODIFY COLUMN transaction_code VARCHAR(40) NOT NULL');
-  await pool.query('ALTER TABLE memberships ADD UNIQUE INDEX IF NOT EXISTS idx_memberships_transaction_code (transaction_code)');
 };
 
 const ensureTransactionPricingColumns = async () => {
@@ -860,8 +826,8 @@ app.get('/memberships', asyncHandler(async (req, res) => {
   const skipActiveFilter = includeExpired === 'true';
   const params = [];
   let query = `
-    SELECT m.id, m.transaction_code, m.vehicle_id, m.tier, m.starts_at, m.ends_at, m.duration_months, m.extra_vehicles,
-      m.total_price, m.created_at, m.updated_at
+    SELECT m.id, m.vehicle_id, m.tier, m.starts_at, m.ends_at, m.duration_months, m.extra_vehicles,
+      m.created_at, m.updated_at
     FROM memberships m
     JOIN vehicles v ON m.vehicle_id = v.id`;
 
@@ -956,10 +922,7 @@ app.post('/memberships', asyncHandler(async (req, res) => {
   endDate.setMonth(endDate.getMonth() + Number(duration_months));
 
   const membershipId = randomUUID();
-  const membershipTransactionCode = createTransactionCode('MBR');
   const resolvedExtraVehicles = tier === 'PLATINUM_VIP' ? parsedExtraVehicleIds.length : 0;
-  const membershipBasePrice = MEMBERSHIP_BASE_PRICE[tier] ?? 0;
-  const membershipTotalPrice = (membershipBasePrice + (tier === 'PLATINUM_VIP' ? resolvedExtraVehicles * EXTRA_VEHICLE_PLATINUM_FEE : 0)) * Number(duration_months);
   const startDateString = startDate.toISOString().slice(0, 10);
   const endDateString = endDate.toISOString().slice(0, 10);
   const affectedVehicleIds = [vehicle_id, ...extraVehicles.map((item) => item.id)];
@@ -977,42 +940,38 @@ app.post('/memberships', asyncHandler(async (req, res) => {
 
   await pool.query(
     `INSERT INTO memberships
-      (id, transaction_code, vehicle_id, tier, starts_at, ends_at, duration_months, extra_vehicles, total_price)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      (id, vehicle_id, tier, starts_at, ends_at, duration_months, extra_vehicles)
+      VALUES (?, ?, ?, ?, ?, ?, ?)`,
     [
       membershipId,
-      membershipTransactionCode,
       vehicle_id,
       tier,
       startDateString,
       endDateString,
       Number(duration_months),
       resolvedExtraVehicles,
-      membershipTotalPrice,
     ]
   );
 
   for (const extraVehicle of extraVehicles) {
     await pool.query(
       `INSERT INTO memberships
-        (id, transaction_code, vehicle_id, tier, starts_at, ends_at, duration_months, extra_vehicles, total_price)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        (id, vehicle_id, tier, starts_at, ends_at, duration_months, extra_vehicles)
+        VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [
         randomUUID(),
-        membershipTransactionCode,
         extraVehicle.id,
         tier,
         startDateString,
         endDateString,
         Number(duration_months),
         0,
-        0,
       ]
     );
   }
 
   const [rows] = await pool.query(
-    `SELECT id, transaction_code, vehicle_id, tier, starts_at, ends_at, duration_months, extra_vehicles, total_price, created_at, updated_at
+    `SELECT id, vehicle_id, tier, starts_at, ends_at, duration_months, extra_vehicles, created_at, updated_at
      FROM memberships
      WHERE id = ?
      LIMIT 1`,
@@ -1274,16 +1233,14 @@ app.post('/transactions', asyncHandler(async (req, res) => {
   });
 
   const transactionId = randomUUID();
-  const transactionCode = createTransactionCode('CW');
   await pool.query(
     `INSERT INTO transactions
-      (id, transaction_code, trx_date, customer_id, category_id, car_brand, plate_number, employee_id, price, base_price,
+      (id, trx_date, customer_id, category_id, car_brand, plate_number, employee_id, price, base_price,
        discount_percent, discount_amount, is_membership_quota_free, is_loyalty_free, is_rain_guarantee_free,
        notes, status)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'QUEUED')`,
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'QUEUED')`,
     [
       transactionId,
-      transactionCode,
       trx_date,
       customer_id || null,
       category_id,
@@ -1460,8 +1417,6 @@ app.delete('/transactions/:id', asyncHandler(async (req, res) => {
 Promise.all([
   ensureUserRoleSupportsSuperAdmin(),
   ensureDefaultCategories(),
-  ensureTransactionReceiptColumns(),
-  ensureMembershipReceiptColumns(),
   ensureTransactionPricingColumns(),
   ensureCompanyProfileTable(),
 ])
