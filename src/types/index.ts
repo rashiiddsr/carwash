@@ -1,4 +1,4 @@
-export type UserRole = 'ADMIN' | 'KARYAWAN' | 'CUSTOMER';
+export type UserRole = 'SUPERADMIN' | 'ADMIN' | 'KARYAWAN' | 'CUSTOMER';
 export type TransactionStatus = 'QUEUED' | 'WASHING' | 'DONE';
 
 export interface User {
@@ -78,6 +78,16 @@ export interface PointEntry {
 export interface LoginResponse {
   token: string;
   user: User;
+}
+
+export interface CompanyProfile {
+  id: string;
+  company_name: string;
+  address: string;
+  phone: string;
+  logo_url: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface DashboardStats {

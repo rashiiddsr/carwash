@@ -1,5 +1,14 @@
 import { authApi } from './auth';
-import { Category, Membership, PointEntry, Transaction, TransactionPricingPreview, User, Vehicle } from '../types';
+import {
+  Category,
+  CompanyProfile,
+  Membership,
+  PointEntry,
+  Transaction,
+  TransactionPricingPreview,
+  User,
+  Vehicle,
+} from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -256,6 +265,24 @@ export const api = {
   points: {
     async getAll(filters?: { customerId?: string }): Promise<PointEntry[]> {
       return request<PointEntry[]>('/points', {}, { customerId: filters?.customerId });
+    },
+  },
+
+  company: {
+    async get(): Promise<CompanyProfile> {
+      return request<CompanyProfile>('/company-profile');
+    },
+
+    async update(data: {
+      company_name: string;
+      address: string;
+      phone: string;
+      logo_url?: string | null;
+    }): Promise<CompanyProfile> {
+      return request<CompanyProfile>('/company-profile', {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      });
     },
   },
 };
