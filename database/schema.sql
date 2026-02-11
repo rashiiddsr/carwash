@@ -47,12 +47,14 @@ CREATE INDEX idx_vehicles_plate ON vehicles (plate_number);
 
 CREATE TABLE IF NOT EXISTS memberships (
   id CHAR(36) NOT NULL PRIMARY KEY,
+  transaction_code VARCHAR(40) NOT NULL,
   vehicle_id CHAR(36) NOT NULL,
   tier ENUM('BASIC', 'BRONZE', 'SILVER', 'GOLD', 'PLATINUM_VIP') NOT NULL,
   starts_at DATE NOT NULL,
   ends_at DATE NOT NULL,
   duration_months INT NOT NULL,
   extra_vehicles INT NOT NULL DEFAULT 0,
+  total_price DECIMAL(12,2) NOT NULL DEFAULT 0,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   CONSTRAINT fk_memberships_vehicle FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE CASCADE
@@ -60,6 +62,7 @@ CREATE TABLE IF NOT EXISTS memberships (
 
 CREATE INDEX idx_memberships_vehicle ON memberships (vehicle_id);
 CREATE INDEX idx_memberships_end ON memberships (ends_at);
+CREATE UNIQUE INDEX idx_memberships_transaction_code ON memberships (transaction_code);
 
 CREATE TABLE IF NOT EXISTS categories (
   id CHAR(36) NOT NULL PRIMARY KEY,
@@ -100,6 +103,7 @@ WHERE NOT EXISTS (SELECT 1 FROM categories WHERE name = 'Large Bike');
 
 CREATE TABLE IF NOT EXISTS transactions (
   id CHAR(36) NOT NULL PRIMARY KEY,
+  transaction_code VARCHAR(40) NOT NULL,
   trx_date DATE NOT NULL,
   customer_id CHAR(36) NULL,
   category_id CHAR(36) NOT NULL,
@@ -127,6 +131,7 @@ CREATE INDEX idx_transactions_status ON transactions (status);
 CREATE INDEX idx_transactions_category ON transactions (category_id);
 CREATE INDEX idx_transactions_employee ON transactions (employee_id);
 CREATE INDEX idx_transactions_customer ON transactions (customer_id);
+CREATE UNIQUE INDEX idx_transactions_transaction_code ON transactions (transaction_code);
 
 CREATE TABLE IF NOT EXISTS points (
   id CHAR(36) NOT NULL PRIMARY KEY,

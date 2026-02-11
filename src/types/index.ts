@@ -21,6 +21,7 @@ export interface Category {
 
 export interface Transaction {
   id: string;
+  transaction_code: string;
   trx_date: string;
   customer_id: string | null;
   category_id: string;
@@ -54,12 +55,14 @@ export interface Vehicle {
 
 export interface Membership {
   id: string;
+  transaction_code: string;
   vehicle_id: string;
   tier: 'BASIC' | 'BRONZE' | 'SILVER' | 'GOLD' | 'PLATINUM_VIP';
   starts_at: string;
   ends_at: string;
   duration_months: number;
   extra_vehicles: number;
+  total_price: number;
   created_at: string;
   updated_at: string;
 }
