@@ -1,5 +1,14 @@
 import { authApi } from './auth';
-import { Category, Membership, PointEntry, Transaction, TransactionPricingPreview, User, Vehicle } from '../types';
+import {
+  Category,
+  CompanyProfile,
+  Membership,
+  PointEntry,
+  Transaction,
+  TransactionPricingPreview,
+  User,
+  Vehicle,
+} from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -21,10 +30,12 @@ const buildUrl = (path: string, params?: Record<string, string | number | boolea
 
 async function request<T>(path: string, options: RequestInit = {}, params?: Record<string, string | number | boolean | undefined>) {
   const token = authApi.getToken();
+  const isFormData = options.body instanceof FormData;
+
   const response = await fetch(buildUrl(path, params), {
     ...options,
     headers: {
-      'Content-Type': 'application/json',
+      ...(!isFormData ? { 'Content-Type': 'application/json' } : {}),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(options.headers || {}),
     },
@@ -256,6 +267,29 @@ export const api = {
   points: {
     async getAll(filters?: { customerId?: string }): Promise<PointEntry[]> {
       return request<PointEntry[]>('/points', {}, { customerId: filters?.customerId });
+    },
+  },
+
+  company: {
+    async get(): Promise<CompanyProfile> {
+      return request<CompanyProfile>('/company-profile');
+    },
+
+    async update(data: {
+      company_name: string;
+      address: string;
+      phone: string;
+      logo_file?: {
+        file_name: string;
+        mime_type: string;
+        base64_data: string;
+        size: number;
+      } | null;
+    }): Promise<CompanyProfile> {
+      return request<CompanyProfile>('/company-profile', {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      });
     },
   },
 };
