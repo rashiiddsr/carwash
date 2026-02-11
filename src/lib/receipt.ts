@@ -27,15 +27,26 @@ const buildReceiptHtml = (title: string, body: string) => `<!doctype html>
     <meta charset="utf-8" />
     <title>${title}</title>
     <style>
-      @page { size: 58mm auto; margin: 2mm; }
+      @page { size: 58mm auto; margin: 0; }
       * { box-sizing: border-box; }
-      body { width: 54mm; margin: 0 auto; font-family: 'Courier New', monospace; font-size: 11px; color: #111; }
+      html, body { width: 58mm; margin: 0; padding: 0; }
+      body {
+        font-family: 'Courier New', monospace;
+        font-size: 12px;
+        line-height: 1.35;
+        color: #111;
+        padding: 2mm;
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact;
+      }
       .center { text-align: center; }
       .line { border-top: 1px dashed #444; margin: 6px 0; }
-      .row { display: flex; justify-content: space-between; gap: 8px; }
+      .row { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+      .row span:first-child { flex: 0 0 auto; }
+      .row span:last-child { flex: 1; text-align: right; word-break: break-word; }
       .bold { font-weight: 700; }
       .muted { color: #444; }
-      img { max-width: 34mm; max-height: 18mm; object-fit: contain; margin-bottom: 4px; }
+      img { max-width: 36mm; max-height: 20mm; object-fit: contain; margin-bottom: 4px; }
       .small { font-size: 10px; }
     </style>
   </head>
@@ -52,24 +63,33 @@ const printWithIframe = (html: string) => {
   iframe.style.border = '0';
   iframe.setAttribute('aria-hidden', 'true');
 
+  let hasPrinted = false;
+  const cleanup = () => {
+    if (iframe.parentNode) {
+      document.body.removeChild(iframe);
+    }
+  };
+
   iframe.onload = () => {
-    const frameWindow = iframe.contentWindow;
-    if (!frameWindow) {
-      if (iframe.parentNode) {
-        document.body.removeChild(iframe);
-      }
+    if (hasPrinted) {
       return;
     }
 
+    hasPrinted = true;
+    const frameWindow = iframe.contentWindow;
+    if (!frameWindow) {
+      cleanup();
+      return;
+    }
+
+    frameWindow.addEventListener('afterprint', cleanup, { once: true });
     frameWindow.focus();
     setTimeout(() => {
       frameWindow.print();
     }, 150);
     setTimeout(() => {
-      if (iframe.parentNode) {
-        document.body.removeChild(iframe);
-      }
-    }, 1000);
+      cleanup();
+    }, 3000);
   };
 
   document.body.appendChild(iframe);
