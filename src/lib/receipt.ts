@@ -3,8 +3,6 @@ import { formatCurrency } from './utils';
 import { getMembershipTier } from './membership';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
-const RECEIPT_PRINTER_MODEL = 'Epson TM-T82X / Generic ESC-POS 58mm';
-
 const resolveLogoUrl = (logoPath: string | null | undefined) => {
   if (!logoPath) {
     return null;
@@ -32,8 +30,8 @@ const buildReceiptHtml = (title: string, body: string) => `<!doctype html>
       html, body { width: 58mm; margin: 0; padding: 0; }
       body {
         font-family: 'Courier New', monospace;
-        font-size: 12px;
-        line-height: 1.35;
+        font-size: 14px;
+        line-height: 1.25;
         color: #111;
         padding: 2mm;
         print-color-adjust: exact;
@@ -47,7 +45,9 @@ const buildReceiptHtml = (title: string, body: string) => `<!doctype html>
       .bold { font-weight: 700; }
       .muted { color: #444; }
       img { max-width: 36mm; max-height: 20mm; object-fit: contain; margin-bottom: 4px; }
-      .small { font-size: 10px; }
+      .small { font-size: 12px; }
+      .wifi-info { margin-top: 2px; }
+      .wifi-info .label { font-weight: 700; }
     </style>
   </head>
   <body>${body}</body>
@@ -151,6 +151,13 @@ const buildCompanyHeader = (company: CompanyProfile, fallbackName: string) => {
   `;
 };
 
+const buildWifiInfo = () => `
+  <div class="center small wifi-info">
+    <div><span class="label">Nama Wifi:</span> Royal Carwash</div>
+    <div><span class="label">Password:</span> royalbersih</div>
+  </div>
+`;
+
 export const printTransactionReceipt = ({
   transaction,
   company,
@@ -174,7 +181,7 @@ export const printTransactionReceipt = ({
     <div class="row"><span>Diskon</span><span>${formatCurrency(transaction.discount_amount || 0)}</span></div>
     <div class="row bold"><span>Total</span><span>${formatCurrency(transaction.price)}</span></div>
     <div class="line"></div>
-    <div class="center small muted">Printer: ${RECEIPT_PRINTER_MODEL}</div>
+    ${buildWifiInfo()}
     <div class="center small">Terima kasih sudah menggunakan layanan kami.</div>
   `;
 
@@ -208,7 +215,7 @@ export const printMembershipReceipt = ({
     <div class="line"></div>
     <div class="row bold"><span>Total Bayar</span><span>${formatCurrency(membership.total_price || 0)}</span></div>
     <div class="line"></div>
-    <div class="center small muted">Printer: ${RECEIPT_PRINTER_MODEL}</div>
+    ${buildWifiInfo()}
     <div class="center small">Struk membership premium.</div>
   `;
 
