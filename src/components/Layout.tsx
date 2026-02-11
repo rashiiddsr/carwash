@@ -17,6 +17,7 @@ import {
   ChevronDown,
 } from 'lucide-react';
 import { UserRole } from '../types';
+import { BrandLogo } from './BrandLogo';
 
 interface MenuItem {
   label: string;
@@ -31,36 +32,48 @@ const menuItems: MenuItem[] = [
     label: 'Dashboard',
     path: '/dashboard',
     icon: <LayoutDashboard className="w-5 h-5" />,
-    roles: ['ADMIN', 'KARYAWAN', 'CUSTOMER'],
+    roles: ['SUPERADMIN', 'ADMIN', 'KARYAWAN', 'CUSTOMER'],
   },
   {
     label: 'Kasir Harian',
     path: '/kasir',
     icon: <CreditCard className="w-5 h-5" />,
-    roles: ['ADMIN'],
+    roles: ['SUPERADMIN', 'ADMIN'],
   },
   {
     label: 'Pembelian Member',
     path: '/membership',
     icon: <Crown className="w-5 h-5" />,
-    roles: ['ADMIN'],
+    roles: ['SUPERADMIN', 'ADMIN'],
   },
   {
     label: 'Master Data',
     path: '#',
     icon: <Tags className="w-5 h-5" />,
-    roles: ['ADMIN'],
+    roles: ['SUPERADMIN', 'ADMIN'],
     children: [
-      { label: 'Kategori', path: '/kategori', icon: null, roles: ['ADMIN'] },
-      { label: 'Karyawan', path: '/karyawan', icon: null, roles: ['ADMIN'] },
-      { label: 'Customer', path: '/customer', icon: null, roles: ['ADMIN'] },
+      { label: 'Kategori', path: '/kategori', icon: null, roles: ['SUPERADMIN', 'ADMIN'] },
+      { label: 'Karyawan', path: '/karyawan', icon: null, roles: ['SUPERADMIN', 'ADMIN'] },
+      { label: 'Customer', path: '/customer', icon: null, roles: ['SUPERADMIN', 'ADMIN'] },
     ],
+  },
+  {
+    label: 'Admin Kasir',
+    path: '/admin-kasir',
+    icon: <UserCircle className="w-5 h-5" />,
+    roles: ['SUPERADMIN'],
+  },
+  {
+    label: 'Data Perusahaan',
+    path: '/perusahaan',
+    icon: <Tags className="w-5 h-5" />,
+    roles: ['SUPERADMIN'],
   },
   {
     label: 'Laporan Transaksi',
     path: '/laporan',
     icon: <FileText className="w-5 h-5" />,
-    roles: ['ADMIN'],
+    roles: ['SUPERADMIN', 'ADMIN'],
   },
   {
     label: 'Pekerjaan Saya',
@@ -119,13 +132,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <div className="lg:hidden fixed top-0 left-0 right-0 bg-white border-b border-gray-200 z-30 px-4 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
-              <Car className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <h1 className="font-bold text-gray-900">Royal Carwash</h1>
-              <p className="text-xs text-gray-600">{user.name}</p>
-            </div>
+            <BrandLogo sizeClassName="w-10 h-10" iconClassName="w-6 h-6" textClassName="font-bold text-gray-900" />
+            <p className="text-xs text-gray-600">{user.name}</p>
           </div>
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -142,15 +150,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         } lg:translate-x-0 w-64`}
       >
         <div className="p-6 border-b border-gray-200 hidden lg:block">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center">
-              <Car className="w-7 h-7 text-white" />
-            </div>
-            <div>
-              <h1 className="font-bold text-lg text-gray-900">Royal Carwash</h1>
-              <p className="text-xs text-gray-600">POS System</p>
-            </div>
-          </div>
+          <BrandLogo subtitle="POS System" />
         </div>
 
         <div className="p-4 border-b border-gray-200 lg:hidden">

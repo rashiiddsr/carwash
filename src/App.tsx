@@ -12,6 +12,8 @@ import { Karyawan } from './pages/admin/Karyawan';
 import { Customer } from './pages/admin/Customer';
 import { Laporan } from './pages/admin/Laporan';
 import { PembelianMember } from './pages/admin/PembelianMember';
+import { AdminKasir } from './pages/superadmin/AdminKasir';
+import { Perusahaan } from './pages/superadmin/Perusahaan';
 import { KaryawanDashboard } from './pages/karyawan/Dashboard';
 import { PekerjaanSaya } from './pages/karyawan/Pekerjaan';
 import { CustomerDashboard } from './pages/customer/Dashboard';
@@ -44,6 +46,8 @@ function RootRedirect() {
 
   if (user.role === 'ADMIN') {
     return <Navigate to="/admin/dashboard" replace />;
+  } else if (user.role === 'SUPERADMIN') {
+    return <Navigate to="/superadmin/dashboard" replace />;
   } else if (user.role === 'KARYAWAN') {
     return <Navigate to="/karyawan/dashboard" replace />;
   } else if (user.role === 'CUSTOMER') {
@@ -64,9 +68,110 @@ export default function App() {
             <Route path="/" element={<RootRedirect />} />
 
             <Route
+              path="/superadmin/dashboard"
+              element={
+                <ProtectedRoute allowedRoles={['SUPERADMIN']}>
+                  <Layout>
+                    <AdminDashboard />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/superadmin/kasir"
+              element={
+                <ProtectedRoute allowedRoles={['SUPERADMIN']}>
+                  <Layout>
+                    <KasirHarian />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/superadmin/kategori"
+              element={
+                <ProtectedRoute allowedRoles={['SUPERADMIN']}>
+                  <Layout>
+                    <Kategori />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/superadmin/membership"
+              element={
+                <ProtectedRoute allowedRoles={['SUPERADMIN']}>
+                  <Layout>
+                    <PembelianMember />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/superadmin/karyawan"
+              element={
+                <ProtectedRoute allowedRoles={['SUPERADMIN']}>
+                  <Layout>
+                    <Karyawan />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/superadmin/customer"
+              element={
+                <ProtectedRoute allowedRoles={['SUPERADMIN']}>
+                  <Layout>
+                    <Customer />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/superadmin/laporan"
+              element={
+                <ProtectedRoute allowedRoles={['SUPERADMIN']}>
+                  <Layout>
+                    <Laporan />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/superadmin/admin-kasir"
+              element={
+                <ProtectedRoute allowedRoles={['SUPERADMIN']}>
+                  <Layout>
+                    <AdminKasir />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/superadmin/perusahaan"
+              element={
+                <ProtectedRoute allowedRoles={['SUPERADMIN']}>
+                  <Layout>
+                    <Perusahaan />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/superadmin/profil"
+              element={
+                <ProtectedRoute allowedRoles={['SUPERADMIN']}>
+                  <Layout>
+                    <Profil />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
               path="/admin/dashboard"
               element={
-                <ProtectedRoute allowedRoles={['ADMIN']}>
+                <ProtectedRoute allowedRoles={['SUPERADMIN', 'ADMIN']}>
                   <Layout>
                     <AdminDashboard />
                   </Layout>
@@ -76,7 +181,7 @@ export default function App() {
             <Route
               path="/admin/kasir"
               element={
-                <ProtectedRoute allowedRoles={['ADMIN']}>
+                <ProtectedRoute allowedRoles={['SUPERADMIN', 'ADMIN']}>
                   <Layout>
                     <KasirHarian />
                   </Layout>
@@ -86,7 +191,7 @@ export default function App() {
             <Route
               path="/admin/kategori"
               element={
-                <ProtectedRoute allowedRoles={['ADMIN']}>
+                <ProtectedRoute allowedRoles={['SUPERADMIN', 'ADMIN']}>
                   <Layout>
                     <Kategori />
                   </Layout>
@@ -96,7 +201,7 @@ export default function App() {
             <Route
               path="/admin/membership"
               element={
-                <ProtectedRoute allowedRoles={['ADMIN']}>
+                <ProtectedRoute allowedRoles={['SUPERADMIN', 'ADMIN']}>
                   <Layout>
                     <PembelianMember />
                   </Layout>
@@ -106,7 +211,7 @@ export default function App() {
             <Route
               path="/admin/karyawan"
               element={
-                <ProtectedRoute allowedRoles={['ADMIN']}>
+                <ProtectedRoute allowedRoles={['SUPERADMIN', 'ADMIN']}>
                   <Layout>
                     <Karyawan />
                   </Layout>
@@ -116,7 +221,7 @@ export default function App() {
             <Route
               path="/admin/customer"
               element={
-                <ProtectedRoute allowedRoles={['ADMIN']}>
+                <ProtectedRoute allowedRoles={['SUPERADMIN', 'ADMIN']}>
                   <Layout>
                     <Customer />
                   </Layout>
@@ -126,7 +231,7 @@ export default function App() {
             <Route
               path="/admin/laporan"
               element={
-                <ProtectedRoute allowedRoles={['ADMIN']}>
+                <ProtectedRoute allowedRoles={['SUPERADMIN', 'ADMIN']}>
                   <Layout>
                     <Laporan />
                   </Layout>
@@ -136,7 +241,7 @@ export default function App() {
             <Route
               path="/admin/profil"
               element={
-                <ProtectedRoute allowedRoles={['ADMIN']}>
+                <ProtectedRoute allowedRoles={['SUPERADMIN', 'ADMIN']}>
                   <Layout>
                     <Profil />
                   </Layout>

@@ -5,6 +5,9 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import mysql from 'mysql2/promise';
 import { randomUUID } from 'crypto';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 dotenv.config();
 
@@ -32,6 +35,31 @@ const pool = mysql.createPool({
 const jwtSecret = process.env.JWT_SECRET || 'change-this-secret';
 const jwtExpiresIn = process.env.JWT_EXPIRES_IN || '7d';
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const uploadsRootDir = path.join(__dirname, 'uploads');
+const logoUploadDir = path.join(uploadsRootDir, 'logos');
+
+fs.mkdirSync(logoUploadDir, { recursive: true });
+
+app.use('/uploads', express.static(uploadsRootDir));
+
+
+const saveCompanyLogoFile = ({ fileName, mimeType, base64Data }) => {
+  if (!base64Data) {
+    return null;
+  }
+
+  const extension = path.extname(fileName || '') || (mimeType?.split('/')[1] ? `.${mimeType.split('/')[1]}` : '.png');
+  const safeExtension = extension.replace(/[^a-zA-Z0-9.]/g, '') || '.png';
+  const fileNameOnDisk = `${randomUUID()}${safeExtension}`;
+  const absolutePath = path.join(logoUploadDir, fileNameOnDisk);
+  const fileBuffer = Buffer.from(base64Data, 'base64');
+
+  fs.writeFileSync(absolutePath, fileBuffer);
+
+  return `/uploads/logos/${fileNameOnDisk}`;
+};
 
 const addDays = (date, days) => {
   const result = new Date(date);
@@ -44,6 +72,22 @@ const sanitizeUser = (row) => ({
   name: row.name,
   phone: row.phone,
   role: row.role,
+  created_at: row.created_at,
+  updated_at: row.updated_at,
+});
+
+const ADMIN_ROLES = new Set(['ADMIN', 'SUPERADMIN']);
+
+const isAdminRole = (role) => ADMIN_ROLES.has(role || '');
+
+const isSuperAdmin = (role) => role === 'SUPERADMIN';
+
+const buildCompanyProfile = (row) => ({
+  id: row.id,
+  company_name: row.company_name,
+  address: row.address,
+  phone: row.phone,
+  logo_path: row.logo_path,
   created_at: row.created_at,
   updated_at: row.updated_at,
 });
@@ -297,6 +341,36 @@ const ensureTransactionPricingColumns = async () => {
   await pool.query('ALTER TABLE transactions ADD COLUMN IF NOT EXISTS is_rain_guarantee_free BOOLEAN NOT NULL DEFAULT FALSE AFTER is_loyalty_free');
 };
 
+const ensureUserRoleSupportsSuperAdmin = async () => {
+  await pool.query(
+    "ALTER TABLE users MODIFY COLUMN role ENUM('SUPERADMIN', 'ADMIN', 'KARYAWAN', 'CUSTOMER') NOT NULL"
+  );
+};
+
+const ensureCompanyProfileTable = async () => {
+  await pool.query(
+    `CREATE TABLE IF NOT EXISTS company_profiles (
+      id CHAR(36) NOT NULL PRIMARY KEY,
+      company_name VARCHAR(150) NOT NULL,
+      address TEXT NOT NULL,
+      phone VARCHAR(30) NOT NULL,
+      logo_path TEXT NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    )`
+  );
+
+  await pool.query('ALTER TABLE company_profiles ADD COLUMN IF NOT EXISTS logo_path TEXT NULL AFTER phone');
+  await pool.query('ALTER TABLE company_profiles DROP COLUMN IF EXISTS logo_url');
+
+  await pool.query(
+    `INSERT INTO company_profiles (id, company_name, address, phone, logo_path)
+     SELECT UUID(), 'Royal Carwash', '-', '-', NULL
+     FROM DUAL
+     WHERE NOT EXISTS (SELECT 1 FROM company_profiles)`
+  );
+};
+
 const computeTransactionPricing = async ({
   trxDate,
   customerId,
@@ -452,6 +526,18 @@ app.get('/auth/verify', authRequired, asyncHandler(async (req, res) => {
   return res.json({ user: sanitizeUser(rows[0]) });
 }));
 
+app.get('/company-profile', asyncHandler(async (req, res) => {
+  const [rows] = await pool.query(
+    'SELECT id, company_name, address, phone, logo_path, created_at, updated_at FROM company_profiles ORDER BY created_at ASC LIMIT 1'
+  );
+
+  if (!rows.length) {
+    return res.status(404).json({ message: 'Company profile not found' });
+  }
+
+  return res.json(buildCompanyProfile(rows[0]));
+}));
+
 app.use(authRequired);
 
 app.get('/users', asyncHandler(async (req, res) => {
@@ -472,9 +558,22 @@ app.get('/users', asyncHandler(async (req, res) => {
 
 app.post('/users', asyncHandler(async (req, res) => {
   const { name, phone, password, role } = req.body;
+  const requesterRole = req.user?.role;
 
   if (!name || !phone || !password || !role) {
     return res.status(400).json({ message: 'Missing required fields' });
+  }
+
+  if (!isAdminRole(requesterRole)) {
+    return res.status(403).json({ message: 'Forbidden' });
+  }
+
+  if (role === 'SUPERADMIN' && !isSuperAdmin(requesterRole)) {
+    return res.status(403).json({ message: 'Hanya superadmin yang bisa membuat superadmin' });
+  }
+
+  if (role === 'ADMIN' && !isSuperAdmin(requesterRole)) {
+    return res.status(403).json({ message: 'Hanya superadmin yang bisa membuat admin kasir' });
   }
 
   const passwordHash = await bcrypt.hash(password, 10);
@@ -497,7 +596,7 @@ app.put('/users/:id', asyncHandler(async (req, res) => {
   const requesterRole = req.user?.role;
   const requesterId = req.user?.userId;
 
-  if (requesterRole !== 'ADMIN' && requesterId !== id) {
+  if (!isAdminRole(requesterRole) && requesterId !== id) {
     return res.status(403).json({ message: 'Forbidden' });
   }
 
@@ -524,7 +623,7 @@ app.put('/users/:id/reset-password', asyncHandler(async (req, res) => {
   const requesterRole = req.user?.role;
   const requesterId = req.user?.userId;
 
-  if (requesterRole !== 'ADMIN' && requesterId !== id) {
+  if (!isAdminRole(requesterRole) && requesterId !== id) {
     return res.status(403).json({ message: 'Forbidden' });
   }
 
@@ -543,9 +642,81 @@ app.put('/users/:id/reset-password', asyncHandler(async (req, res) => {
 
 app.delete('/users/:id', asyncHandler(async (req, res) => {
   const { id } = req.params;
+  const requesterRole = req.user?.role;
+
+  if (!isAdminRole(requesterRole)) {
+    return res.status(403).json({ message: 'Forbidden' });
+  }
+
+  const [rows] = await pool.query('SELECT id, role FROM users WHERE id = ? LIMIT 1', [id]);
+  if (!rows.length) {
+    return res.status(404).json({ message: 'User not found' });
+  }
+
+  const targetRole = rows[0].role;
+  if ((targetRole === 'SUPERADMIN' || targetRole === 'ADMIN') && !isSuperAdmin(requesterRole)) {
+    return res.status(403).json({ message: 'Hanya superadmin yang dapat menghapus superadmin/admin' });
+  }
 
   await pool.query('DELETE FROM users WHERE id = ?', [id]);
   return res.json({ success: true });
+}));
+
+app.put('/company-profile', asyncHandler(async (req, res) => {
+  const requesterRole = req.user?.role;
+  const { company_name, address, phone, logo_file } = req.body;
+
+  if (!isSuperAdmin(requesterRole)) {
+    return res.status(403).json({ message: 'Hanya superadmin yang dapat mengubah data perusahaan' });
+  }
+
+  if (!company_name || !address || !phone) {
+    return res.status(400).json({ message: 'Nama perusahaan, alamat, dan nomor hp wajib diisi' });
+  }
+
+  const [rows] = await pool.query('SELECT id, logo_path FROM company_profiles ORDER BY created_at ASC LIMIT 1');
+  if (!rows.length) {
+    return res.status(404).json({ message: 'Company profile not found' });
+  }
+
+  const companyId = rows[0].id;
+  const existingLogoPath = rows[0].logo_path || null;
+
+  let nextLogoPath = existingLogoPath;
+  if (logo_file?.base64_data) {
+    if (!logo_file.mime_type?.startsWith('image/')) {
+      return res.status(400).json({ message: 'File logo harus berupa gambar' });
+    }
+
+    if (logo_file.size && Number(logo_file.size) > 2 * 1024 * 1024) {
+      return res.status(400).json({ message: 'Ukuran logo maksimal 2MB' });
+    }
+
+    nextLogoPath = saveCompanyLogoFile({
+      fileName: logo_file.file_name,
+      mimeType: logo_file.mime_type,
+      base64Data: logo_file.base64_data,
+    });
+
+    if (existingLogoPath) {
+      const existingFilePath = path.join(__dirname, existingLogoPath.replace(/^\//, ''));
+      if (fs.existsSync(existingFilePath)) {
+        fs.unlinkSync(existingFilePath);
+      }
+    }
+  }
+
+  await pool.query(
+    'UPDATE company_profiles SET company_name = ?, address = ?, phone = ?, logo_path = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+    [company_name, address, phone, nextLogoPath, companyId]
+  );
+
+  const [updatedRows] = await pool.query(
+    'SELECT id, company_name, address, phone, logo_path, created_at, updated_at FROM company_profiles WHERE id = ? LIMIT 1',
+    [companyId]
+  );
+
+  return res.json(buildCompanyProfile(updatedRows[0]));
 }));
 
 app.get('/vehicles', asyncHandler(async (req, res) => {
@@ -1243,7 +1414,12 @@ app.delete('/transactions/:id', asyncHandler(async (req, res) => {
   return res.json({ success: true });
 }));
 
-Promise.all([ensureDefaultCategories(), ensureTransactionPricingColumns()])
+Promise.all([
+  ensureUserRoleSupportsSuperAdmin(),
+  ensureDefaultCategories(),
+  ensureTransactionPricingColumns(),
+  ensureCompanyProfileTable(),
+])
   .then(() => {
     app.listen(port, () => {
       // eslint-disable-next-line no-console

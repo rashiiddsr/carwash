@@ -6,16 +6,31 @@ CREATE TABLE IF NOT EXISTS users (
   name VARCHAR(150) NOT NULL,
   phone VARCHAR(30) NOT NULL UNIQUE,
   password_hash VARCHAR(255) NOT NULL,
-  role ENUM('ADMIN', 'KARYAWAN', 'CUSTOMER') NOT NULL,
+  role ENUM('SUPERADMIN', 'ADMIN', 'KARYAWAN', 'CUSTOMER') NOT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
 INSERT INTO users (id, name, phone, password_hash, role)
 VALUES
+  (UUID(), 'Superadmin Royal Carwash', '0812711101111', '$2b$12$jlhRwWc74ItUZj9puebRu.dCwuZPsf2XrBeCeqvDCuuA0Co1lKtXO', 'SUPERADMIN'),
   (UUID(), 'Admin Royal Carwash', '081271110555', '$2b$12$jlhRwWc74ItUZj9puebRu.dCwuZPsf2XrBeCeqvDCuuA0Co1lKtXO', 'ADMIN'),
   (UUID(), 'Karyawan Royal Carwash', '0812711103333', '$2b$12$jlhRwWc74ItUZj9puebRu.dCwuZPsf2XrBeCeqvDCuuA0Co1lKtXO', 'KARYAWAN'),
   (UUID(), 'Customer Royal Carwash', '0812711104444', '$2b$12$jlhRwWc74ItUZj9puebRu.dCwuZPsf2XrBeCeqvDCuuA0Co1lKtXO', 'CUSTOMER');
+
+CREATE TABLE IF NOT EXISTS company_profiles (
+  id CHAR(36) NOT NULL PRIMARY KEY,
+  company_name VARCHAR(150) NOT NULL,
+  address TEXT NOT NULL,
+  phone VARCHAR(30) NOT NULL,
+  logo_path TEXT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+INSERT INTO company_profiles (id, company_name, address, phone, logo_path)
+SELECT UUID(), 'Royal Carwash', '-', '-', NULL FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM company_profiles);
 
 CREATE TABLE IF NOT EXISTS vehicles (
   id CHAR(36) NOT NULL PRIMARY KEY,
