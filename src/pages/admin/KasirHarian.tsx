@@ -7,9 +7,8 @@ import { api } from '../../lib/api';
 import { getTodayDate, formatCurrency, formatTime } from '../../lib/utils';
 import { useToast } from '../../hooks/useToast';
 import { Modal } from '../../components/ui/Modal';
-import { Plus, Edit, Eye, Filter, ShoppingCart, Printer } from 'lucide-react';
+import { Plus, Edit, Eye, Filter, ShoppingCart } from 'lucide-react';
 import { Transaction } from '../../types';
-import { printTransactionReceipt } from '../../lib/receipt';
 
 const transactionSchema = z.object({
   customer_id: z.string().optional().nullable(),
@@ -77,11 +76,6 @@ export function KasirHarian() {
   const { data: customers = [] } = useQuery({
     queryKey: ['users', 'CUSTOMER'],
     queryFn: () => api.users.getAll('CUSTOMER'),
-  });
-
-  const { data: companyProfile } = useQuery({
-    queryKey: ['company-profile'],
-    queryFn: () => api.company.get(),
   });
 
   const {
@@ -301,22 +295,6 @@ export function KasirHarian() {
     updateStatusMutation.mutate({ id, status });
   };
 
-  const handlePrintReceipt = (transaction: Transaction) => {
-    if (!companyProfile) {
-      showError('Profil perusahaan belum termuat. Coba lagi.');
-      return;
-    }
-
-    try {
-      printTransactionReceipt({
-        transaction,
-        company: companyProfile,
-      });
-    } catch (error) {
-      showError(error instanceof Error ? error.message : 'Gagal membuka struk');
-    }
-  };
-
   const onSubmit = (data: TransactionFormData) => {
     if (selectedTransaction) {
       updateMutation.mutate({ id: selectedTransaction.id, data });
@@ -458,8 +436,7 @@ export function KasirHarian() {
                 {transactions.map((transaction) => (
                   <tr key={transaction.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      <div>{formatTime(transaction.created_at)}</div>
-                      <div className="text-xs text-gray-500">{transaction.transaction_code}</div>
+                      {formatTime(transaction.created_at)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {transaction.customer?.name || 'Umum'}
@@ -506,15 +483,6 @@ export function KasirHarian() {
                         >
                           <Edit className="w-4 h-4" />
                         </button>
-                        {transaction.status === 'DONE' && (
-                          <button
-                            onClick={() => handlePrintReceipt(transaction)}
-                            className="p-1 hover:bg-green-50 text-green-600 rounded transition"
-                            title="Cetak struk 58mm"
-                          >
-                            <Printer className="w-4 h-4" />
-                          </button>
-                        )}
                       </div>
                     </td>
                   </tr>
@@ -890,7 +858,6 @@ export function KasirHarian() {
               <div>
                 <p className="text-sm text-gray-600">Tanggal</p>
                 <p className="font-medium">{formatTime(selectedTransaction.created_at)}</p>
-                <p className="text-xs text-gray-500">{selectedTransaction.transaction_code}</p>
               </div>
               <div>
                 <p className="text-sm text-gray-600">Status</p>
