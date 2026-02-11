@@ -15,11 +15,10 @@ export function Profil() {
   const [password, setPassword] = useState('');
 
   const roleLabels = {
-    SUPERADMIN: 'Superadmin',
     ADMIN: 'Administrator',
     KARYAWAN: 'Karyawan',
     CUSTOMER: 'Customer',
-  } as const;
+  };
 
   const updateProfileMutation = useMutation({
     mutationFn: () => {

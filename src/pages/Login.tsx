@@ -20,9 +20,7 @@ export function Login() {
       await login(phone, password);
       const user = JSON.parse(localStorage.getItem('royal_carwash_user') || '{}');
 
-      if (user.role === 'SUPERADMIN') {
-        navigate('/superadmin/dashboard');
-      } else if (user.role === 'ADMIN') {
+      if (user.role === 'ADMIN') {
         navigate('/admin/dashboard');
       } else if (user.role === 'KARYAWAN') {
         navigate('/karyawan/dashboard');
@@ -92,10 +90,6 @@ export function Login() {
           <div className="mt-8 pt-6 border-t border-gray-200">
             <p className="text-xs text-gray-500 text-center">Akun Demo:</p>
             <div className="mt-3 space-y-2 text-xs text-gray-600">
-              <div className="flex justify-between">
-                <span>Superadmin:</span>
-                <span className="font-mono">(buat via database)</span>
-              </div>
               <div className="flex justify-between">
                 <span>Admin:</span>
                 <span className="font-mono">081271110555 / 1234</span>

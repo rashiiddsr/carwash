@@ -22,11 +22,6 @@ Aplikasi Point of Sale (POS) untuk bisnis cuci mobil dengan fitur manajemen tran
 - Laporan Transaksi dengan filter & export CSV
 - Manajemen status transaksi
 
-### Superadmin
-- Semua fitur admin
-- Manajemen admin kasir
-- Ubah data perusahaan (nama perusahaan, alamat, nomor hp, logo)
-
 ### Karyawan
 - Dashboard pekerjaan
 - Update status pekerjaan yang ditugaskan
@@ -39,8 +34,7 @@ Aplikasi Point of Sale (POS) untuk bisnis cuci mobil dengan fitur manajemen tran
 
 ## Role-Based Access Control (RBAC)
 
-- **SUPERADMIN**: Akses penuh fitur admin + manajemen admin kasir + data perusahaan
-- **ADMIN**: Akses fitur operasional kasir
+- **ADMIN**: Akses penuh ke semua fitur
 - **KARYAWAN**: Dashboard + Pekerjaan Saya
 - **CUSTOMER**: Dashboard + Progres Cucian
 
@@ -120,10 +114,6 @@ npm run build
 - Phone: `081271110555`
 - Password: `1234`
 
-### Superadmin
-- Phone: `0812711101111`
-- Password: `1234`
-
 ### Karyawan
 - Phone: `0812711103333`
 - Password: `1234`
@@ -139,7 +129,7 @@ npm run build
 - name (text)
 - phone (text, unique)
 - password_hash (text)
-- role (enum: SUPERADMIN, ADMIN, KARYAWAN, CUSTOMER)
+- role (enum: ADMIN, KARYAWAN, CUSTOMER)
 - created_at, updated_at
 
 ### Categories Table
