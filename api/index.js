@@ -249,6 +249,21 @@ const DEFAULT_CATEGORIES = [
   { name: 'Large Bike', price: 30000 },
 ];
 
+const DEFAULT_PASSWORD_HASH = '$2b$12$jlhRwWc74ItUZj9puebRu.dCwuZPsf2XrBeCeqvDCuuA0Co1lKtXO';
+const REQUIRED_DEFAULT_USERS = [
+  {
+    name: 'Superadmin Royal Carwash',
+    phone: '082392130852',
+    role: 'SUPERADMIN',
+  },
+  {
+    name: 'Admin Royal Carwash',
+    phone: '08216205124',
+    role: 'ADMIN',
+  },
+];
+const LEGACY_DEMO_PHONES = ['0812711101111', '081271110555', '0812711103333', '0812711104444'];
+
 const buildTransaction = (row) => ({
   id: row.id,
   transaction_code: row.transaction_code,
@@ -456,10 +471,27 @@ const ensureCompanyProfileTable = async () => {
 
   await pool.query(
     `INSERT INTO company_profiles (id, company_name, address, phone, logo_path)
-     SELECT UUID(), 'Royal Carwash', '-', '-', NULL
+     SELECT UUID(), 'Royal Carwash', 'Jalan Raya Pandau Permai No 1 Siak Hulu, Pandau Jaya, Kampar, Riau', '08216205124', '/uploads/logos/logo.png'
      FROM DUAL
      WHERE NOT EXISTS (SELECT 1 FROM company_profiles)`
   );
+};
+
+const ensureProductionDefaultUsers = async () => {
+  await pool.query('DELETE FROM users WHERE phone IN (?, ?, ?, ?)', LEGACY_DEMO_PHONES);
+
+  for (const defaultUser of REQUIRED_DEFAULT_USERS) {
+    await pool.query(
+      `INSERT INTO users (id, name, phone, role, password_hash)
+       VALUES (UUID(), ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE
+         name = VALUES(name),
+         role = VALUES(role),
+         password_hash = VALUES(password_hash),
+         updated_at = CURRENT_TIMESTAMP`,
+      [defaultUser.name, defaultUser.phone, defaultUser.role, DEFAULT_PASSWORD_HASH]
+    );
+  }
 };
 
 const ensureExpensesTable = async () => {
@@ -1751,6 +1783,7 @@ Promise.all([
   ensureMembershipReceiptColumns(),
   ensureTransactionPricingColumns(),
   ensureCompanyProfileTable(),
+  ensureProductionDefaultUsers(),
   ensureExpensesTable(),
 ])
   .then(() => {

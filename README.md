@@ -114,22 +114,14 @@ npm run dev
 npm run build
 ```
 
-## Akun Default (Testing)
+## Akun Default
 
 ### Admin
-- Phone: `081271110555`
+- Phone: `08216205124`
 - Password: `1234`
 
 ### Superadmin
-- Phone: `0812711101111`
-- Password: `1234`
-
-### Karyawan
-- Phone: `0812711103333`
-- Password: `1234`
-
-### Customer
-- Phone: `0812711104444`
+- Phone: `082392130852`
 - Password: `1234`
 
 ## Database Schema
@@ -259,7 +251,7 @@ Login dengan phone number dan password.
 **Request Body:**
 ```json
 {
-  "phone": "081271110555",
+  "phone": "08216205124",
   "password": "1234"
 }
 ```
@@ -271,7 +263,7 @@ Login dengan phone number dan password.
   "user": {
     "id": "uuid",
     "name": "Admin Royal Carwash",
-    "phone": "081271110555",
+    "phone": "08216205124",
     "role": "ADMIN",
     "created_at": "2024-01-01T00:00:00Z",
     "updated_at": "2024-01-01T00:00:00Z"

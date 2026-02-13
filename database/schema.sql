@@ -13,10 +13,8 @@ CREATE TABLE IF NOT EXISTS users (
 
 INSERT INTO users (id, name, phone, password_hash, role)
 VALUES
-  (UUID(), 'Superadmin Royal Carwash', '0812711101111', '$2b$12$jlhRwWc74ItUZj9puebRu.dCwuZPsf2XrBeCeqvDCuuA0Co1lKtXO', 'SUPERADMIN'),
-  (UUID(), 'Admin Royal Carwash', '081271110555', '$2b$12$jlhRwWc74ItUZj9puebRu.dCwuZPsf2XrBeCeqvDCuuA0Co1lKtXO', 'ADMIN'),
-  (UUID(), 'Karyawan Royal Carwash', '0812711103333', '$2b$12$jlhRwWc74ItUZj9puebRu.dCwuZPsf2XrBeCeqvDCuuA0Co1lKtXO', 'KARYAWAN'),
-  (UUID(), 'Customer Royal Carwash', '0812711104444', '$2b$12$jlhRwWc74ItUZj9puebRu.dCwuZPsf2XrBeCeqvDCuuA0Co1lKtXO', 'CUSTOMER');
+  (UUID(), 'Superadmin Royal Carwash', '082392130852', '$2b$12$jlhRwWc74ItUZj9puebRu.dCwuZPsf2XrBeCeqvDCuuA0Co1lKtXO', 'SUPERADMIN'),
+  (UUID(), 'Admin Royal Carwash', '08216205124', '$2b$12$jlhRwWc74ItUZj9puebRu.dCwuZPsf2XrBeCeqvDCuuA0Co1lKtXO', 'ADMIN');
 
 CREATE TABLE IF NOT EXISTS company_profiles (
   id CHAR(36) NOT NULL PRIMARY KEY,
@@ -29,7 +27,7 @@ CREATE TABLE IF NOT EXISTS company_profiles (
 );
 
 INSERT INTO company_profiles (id, company_name, address, phone, logo_path)
-SELECT UUID(), 'Royal Carwash', '-', '-', NULL FROM DUAL
+SELECT UUID(), 'Royal Carwash', 'Jalan Raya Pandau Permai No 1 Siak Hulu, Pandau Jaya, Kampar, Riau', '08216205124', '/uploads/logos/logo.png' FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM company_profiles);
 
 CREATE TABLE IF NOT EXISTS vehicles (
