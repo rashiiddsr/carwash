@@ -1,21 +1,124 @@
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../../contexts/AuthContext';
 import { api } from '../../lib/api';
-import { getTodayDate, formatCurrency, formatTime } from '../../lib/utils';
-import { Briefcase, CheckCircle, Clock } from 'lucide-react';
+import { getTodayDate, formatCurrency, formatTime, formatDateISO } from '../../lib/utils';
+import { Banknote, Briefcase, CheckCircle, Clock } from 'lucide-react';
+
+const WAGE_BY_CATEGORY: Record<string, number> = {
+  'small/city car': 15000,
+  'suv/mpv': 16000,
+  'suv/mvp': 16000,
+  'big suv/double cabin': 17000,
+  'big suv/double chain': 17000,
+  'small bike': 6000,
+  'medium bike': 7000,
+  'large bike': 8000,
+};
+
+const PAID_CATEGORY_KEYS = [
+  'small/city car',
+  'suv/mpv',
+  'big suv/double cabin',
+  'small bike',
+  'medium bike',
+  'large bike',
+] as const;
+
+type PaidCategoryKey = (typeof PAID_CATEGORY_KEYS)[number];
+
+function getWeekRange(date: Date): { start: string; end: string } {
+  const localDate = new Date(date);
+  localDate.setHours(0, 0, 0, 0);
+  const day = localDate.getDay();
+  const offsetToMonday = day === 0 ? -6 : 1 - day;
+
+  const monday = new Date(localDate);
+  monday.setDate(localDate.getDate() + offsetToMonday);
+
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+
+  return {
+    start: formatDateISO(monday),
+    end: formatDateISO(sunday),
+  };
+}
+
+function calculateWeeklyWageByCategory(categoryNames: string[]) {
+  const counts: Record<PaidCategoryKey, number> = {
+    'small/city car': 0,
+    'suv/mpv': 0,
+    'big suv/double cabin': 0,
+    'small bike': 0,
+    'medium bike': 0,
+    'large bike': 0,
+  };
+
+  for (const categoryName of categoryNames) {
+    const normalized = categoryName.trim().toLowerCase();
+    if (normalized === 'suv/mvp') {
+      counts['suv/mpv'] += 1;
+      continue;
+    }
+
+    if (normalized === 'big suv/double chain') {
+      counts['big suv/double cabin'] += 1;
+      continue;
+    }
+
+    if (normalized in counts) {
+      counts[normalized as PaidCategoryKey] += 1;
+    }
+  }
+
+  const total = PAID_CATEGORY_KEYS.reduce((sum, key) => {
+    return sum + counts[key] * WAGE_BY_CATEGORY[key];
+  }, 0);
+
+  return { counts, total };
+}
+
+const CATEGORY_LABELS: Record<PaidCategoryKey, string> = {
+  'small/city car': 'Small/City Car',
+  'suv/mpv': 'SUV/MPV',
+  'big suv/double cabin': 'Big SUV/Double Cabin',
+  'small bike': 'Small Bike',
+  'medium bike': 'Medium Bike',
+  'large bike': 'Large Bike',
+};
 
 export function KaryawanDashboard() {
   const { user } = useAuth();
   const today = getTodayDate();
+  const weekRange = getWeekRange(new Date());
 
   const { data: transactions = [], isLoading } = useQuery({
     queryKey: ['transactions', 'employee', user?.id, today],
     queryFn: () => api.transactions.getAll({ employeeId: user?.id, date: today }),
   });
 
+  const { data: weeklyTransactions = [], isLoading: isWeeklyLoading } = useQuery({
+    queryKey: ['transactions', 'employee', 'weekly-wage', user?.id, weekRange.start, weekRange.end],
+    queryFn: () =>
+      api.transactions.getAll({
+        employeeId: user?.id,
+        startDate: weekRange.start,
+        endDate: weekRange.end,
+        status: 'DONE',
+      }),
+  });
+
   const totalJobs = transactions.length;
   const completedJobs = transactions.filter((t) => t.status === 'DONE').length;
   const activeJobs = transactions.filter((t) => t.status !== 'DONE');
+
+  const weeklyCategories = weeklyTransactions.map((transaction) => transaction.category?.name ?? '');
+  const realtimeWeeklyCategories = weeklyTransactions
+    .filter((transaction) => transaction.trx_date <= today)
+    .map((transaction) => transaction.category?.name ?? '');
+
+  const weeklyWage = calculateWeeklyWageByCategory(weeklyCategories);
+  const realtimeWeeklyWage = calculateWeeklyWageByCategory(realtimeWeeklyCategories);
 
   return (
     <div className="space-y-6">
@@ -24,7 +127,7 @@ export function KaryawanDashboard() {
         <p className="text-gray-600 mt-1">Selamat datang, {user?.name}</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
         <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
           <div className="flex items-center justify-between">
             <div>
@@ -58,6 +161,73 @@ export function KaryawanDashboard() {
             <div className="w-12 h-12 rounded-lg bg-yellow-50 flex items-center justify-center">
               <Clock className="w-6 h-6 text-yellow-600" />
             </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-sm text-gray-600 mb-1">Gaji Mingguan (Senin-Minggu)</p>
+              <p className="text-2xl font-bold text-emerald-600">
+                {isWeeklyLoading ? '...' : formatCurrency(weeklyWage.total)}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">
+                Realtime sampai hari ini:{' '}
+                {isWeeklyLoading ? '...' : formatCurrency(realtimeWeeklyWage.total)}
+              </p>
+            </div>
+            <div className="w-12 h-12 rounded-lg bg-emerald-50 flex items-center justify-center">
+              <Banknote className="w-6 h-6 text-emerald-600" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100">
+        <div className="p-6 border-b border-gray-100 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+          <h2 className="text-lg font-semibold text-gray-900">Rincian Gaji Minggu Berjalan</h2>
+          <span className="inline-flex items-center rounded-full bg-emerald-50 text-emerald-700 text-sm font-medium px-3 py-1 w-fit">
+            Periode {weekRange.start} s/d {weekRange.end}
+          </span>
+        </div>
+        <div className="p-6">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[640px] text-sm">
+              <thead>
+                <tr className="border-b border-gray-100 text-gray-500 uppercase text-xs tracking-wide">
+                  <th className="text-left py-3">Kategori</th>
+                  <th className="text-right py-3">Jumlah (Realtime)</th>
+                  <th className="text-right py-3">Tarif</th>
+                  <th className="text-right py-3">Subtotal</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {PAID_CATEGORY_KEYS.map((categoryKey) => {
+                  const count = realtimeWeeklyWage.counts[categoryKey];
+                  const rate = WAGE_BY_CATEGORY[categoryKey];
+                  const subtotal = count * rate;
+
+                  return (
+                    <tr key={categoryKey} className="text-gray-800">
+                      <td className="py-3 font-medium">{CATEGORY_LABELS[categoryKey]}</td>
+                      <td className="py-3 text-right">{count}</td>
+                      <td className="py-3 text-right">{formatCurrency(rate)}</td>
+                      <td className="py-3 text-right font-semibold">{formatCurrency(subtotal)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot>
+                <tr className="border-t-2 border-emerald-100">
+                  <td colSpan={3} className="py-4 text-right font-semibold text-gray-900">
+                    Total Gaji Realtime
+                  </td>
+                  <td className="py-4 text-right font-bold text-emerald-700">
+                    {formatCurrency(realtimeWeeklyWage.total)}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
           </div>
         </div>
       </div>

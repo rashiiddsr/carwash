@@ -1,25 +1,41 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../contexts/AuthContext';
 import { api } from '../../lib/api';
-import { getTodayDate, formatCurrency, formatTime } from '../../lib/utils';
+import { formatCurrency, formatTime, formatDateISO } from '../../lib/utils';
 import { useToast } from '../../hooks/useToast';
 import { Briefcase, Filter } from 'lucide-react';
 
+function getLast7DaysRange() {
+  const end = new Date();
+  end.setHours(0, 0, 0, 0);
+
+  const start = new Date(end);
+  start.setDate(end.getDate() - 6);
+
+  return {
+    startDate: formatDateISO(start),
+    endDate: formatDateISO(end),
+  };
+}
+
 export function PekerjaanSaya() {
   const { user } = useAuth();
-  const [selectedDate, setSelectedDate] = useState(getTodayDate());
+  const initialRange = useMemo(() => getLast7DaysRange(), []);
+  const [startDate, setStartDate] = useState(initialRange.startDate);
+  const [endDate, setEndDate] = useState(initialRange.endDate);
   const [statusFilter, setStatusFilter] = useState('');
 
   const queryClient = useQueryClient();
   const { showSuccess, showError, ToastComponent } = useToast();
 
   const { data: transactions = [], isLoading } = useQuery({
-    queryKey: ['transactions', 'employee', user?.id, selectedDate, statusFilter],
+    queryKey: ['transactions', 'employee', user?.id, startDate, endDate, statusFilter],
     queryFn: () =>
       api.transactions.getAll({
         employeeId: user?.id,
-        date: selectedDate,
+        startDate,
+        endDate,
         status: statusFilter || undefined,
       }),
   });
@@ -40,27 +56,51 @@ export function PekerjaanSaya() {
     updateStatusMutation.mutate({ id, status });
   };
 
+  const setLast7Days = () => {
+    const range = getLast7DaysRange();
+    setStartDate(range.startDate);
+    setEndDate(range.endDate);
+  };
+
   return (
     <div className="space-y-6">
       {ToastComponent}
 
       <div>
         <h1 className="text-3xl font-bold text-gray-900">Pekerjaan Saya</h1>
-        <p className="text-gray-600 mt-1">Kelola pekerjaan yang ditugaskan kepada Anda</p>
+        <p className="text-gray-600 mt-1">Default menampilkan data 7 hari terakhir agar progres tetap terlihat</p>
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-        <div className="flex items-center gap-2 mb-4">
-          <Filter className="w-5 h-5 text-gray-600" />
-          <h3 className="font-semibold text-gray-900">Filter</h3>
+        <div className="flex items-center justify-between gap-3 mb-4">
+          <div className="flex items-center gap-2">
+            <Filter className="w-5 h-5 text-gray-600" />
+            <h3 className="font-semibold text-gray-900">Filter</h3>
+          </div>
+          <button
+            type="button"
+            onClick={setLast7Days}
+            className="text-xs md:text-sm font-medium px-3 py-2 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100"
+          >
+            7 Hari Terakhir
+          </button>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Tanggal</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Dari Tanggal</label>
             <input
               type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Sampai Tanggal</label>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
             />
           </div>
@@ -89,7 +129,7 @@ export function PekerjaanSaya() {
           ) : transactions.length === 0 ? (
             <div className="p-12 text-center">
               <Briefcase className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-600">Belum ada pekerjaan untuk tanggal ini</p>
+              <p className="text-gray-600">Belum ada pekerjaan pada rentang tanggal yang dipilih</p>
             </div>
           ) : (
             <table className="w-full">
