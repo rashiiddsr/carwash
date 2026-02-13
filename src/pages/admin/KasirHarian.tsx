@@ -41,7 +41,9 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 export function KasirHarian() {
-  const [selectedDate, setSelectedDate] = useState(getTodayDate());
+  const today = getTodayDate();
+  const [startDate, setStartDate] = useState(today);
+  const [endDate, setEndDate] = useState(today);
   const [statusFilter, setStatusFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [employeeFilter, setEmployeeFilter] = useState('');
@@ -54,10 +56,11 @@ export function KasirHarian() {
   const { showSuccess, showError, ToastComponent } = useToast();
 
   const { data: transactions = [], isLoading } = useQuery({
-    queryKey: ['transactions', selectedDate, statusFilter, categoryFilter, employeeFilter],
+    queryKey: ['transactions', startDate, endDate, statusFilter, categoryFilter, employeeFilter],
     queryFn: () =>
       api.transactions.getAll({
-        date: selectedDate,
+        startDate,
+        endDate,
         status: statusFilter || undefined,
         categoryId: categoryFilter || undefined,
         employeeId: employeeFilter || undefined,
@@ -133,7 +136,7 @@ export function KasirHarian() {
   const { data: pricingPreview } = useQuery({
     queryKey: [
       'transaction-pricing-preview',
-      selectedDate,
+      endDate,
       selectedCustomerId,
       selectedVehicleId,
       selectedCategoryId,
@@ -142,7 +145,7 @@ export function KasirHarian() {
     ],
     queryFn: () =>
       api.transactions.previewPricing({
-        trx_date: selectedDate,
+        trx_date: endDate,
         customer_id: selectedCustomerId || null,
         vehicle_id: selectedVehicleId || null,
         category_id: selectedCategoryId,
@@ -200,7 +203,7 @@ export function KasirHarian() {
   const createMutation = useMutation({
     mutationFn: (data: TransactionFormData) => {
       return api.transactions.create({
-        trx_date: selectedDate,
+        trx_date: endDate,
         customer_id: data.customer_id || null,
         category_id: data.category_id,
         car_brand: data.car_brand,
@@ -352,18 +355,27 @@ export function KasirHarian() {
             <h3 className="font-semibold text-gray-900">Filter</h3>
           </div>
           <div className="bg-emerald-50 border border-emerald-100 rounded-lg px-4 py-3 text-right">
-            <p className="text-xs text-emerald-700">Total Omzet ({selectedDate})</p>
+            <p className="text-xs text-emerald-700">Total Omzet ({startDate} s/d {endDate})</p>
             <p className="text-xl font-bold text-emerald-700">{formatCurrency(totalOmzetHarian)}</p>
             <p className="text-xs text-emerald-600 mt-1">{transactions.length} transaksi</p>
           </div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Tanggal</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Dari Tanggal</label>
             <input
               type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Sampai Tanggal</label>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
             />
           </div>
@@ -422,7 +434,7 @@ export function KasirHarian() {
           ) : transactions.length === 0 ? (
             <div className="p-12 text-center">
               <ShoppingCart className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-600">Belum ada transaksi untuk tanggal ini</p>
+              <p className="text-gray-600">Belum ada transaksi untuk rentang tanggal ini</p>
               <button
                 onClick={handleAdd}
                 className="mt-4 text-blue-600 hover:text-blue-700 font-medium"
