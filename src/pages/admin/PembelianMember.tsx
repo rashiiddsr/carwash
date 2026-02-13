@@ -32,7 +32,9 @@ export function PembelianMember() {
   const queryClient = useQueryClient();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [customerFilter, setCustomerFilter] = useState('');
-  const [selectedDate, setSelectedDate] = useState(getTodayDate());
+  const today = getTodayDate();
+  const [startDate, setStartDate] = useState(today);
+  const [endDate, setEndDate] = useState(today);
 
   const { data: customers = [] } = useQuery({
     queryKey: ['users', 'customers'],
@@ -59,8 +61,12 @@ export function PembelianMember() {
   });
 
   const filteredPurchases = useMemo(
-    () => purchases.filter((purchase) => purchase.created_at.slice(0, 10) === selectedDate),
-    [purchases, selectedDate]
+    () =>
+      purchases.filter((purchase) => {
+        const purchaseDate = purchase.created_at.slice(0, 10);
+        return purchaseDate >= startDate && purchaseDate <= endDate;
+      }),
+    [purchases, startDate, endDate]
   );
 
   const totalOmzetMembership = filteredPurchases.reduce(
@@ -238,7 +244,7 @@ export function PembelianMember() {
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Filter Customer</label>
             <select
@@ -255,11 +261,20 @@ export function PembelianMember() {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Filter Tanggal</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Dari Tanggal</label>
             <input
               type="date"
-              value={selectedDate}
-              onChange={(event) => setSelectedDate(event.target.value)}
+              value={startDate}
+              onChange={(event) => setStartDate(event.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Sampai Tanggal</label>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(event) => setEndDate(event.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
             />
           </div>
@@ -267,7 +282,7 @@ export function PembelianMember() {
 
         <div className="bg-emerald-50 border border-emerald-100 rounded-lg px-4 py-3 flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-emerald-700">Omzet Membership ({selectedDate})</p>
+            <p className="text-sm font-medium text-emerald-700">Omzet Membership ({startDate} s/d {endDate})</p>
             <p className="text-xs text-emerald-600">{filteredPurchases.length} pembelian</p>
           </div>
           <p className="text-2xl font-bold text-emerald-700">{formatCurrency(totalOmzetMembership)}</p>
@@ -320,17 +335,13 @@ export function PembelianMember() {
                       <td className="px-6 py-4 text-sm text-gray-700">{purchase.duration_months} bulan</td>
                       <td className="px-6 py-4 text-sm text-gray-700 font-mono">{purchase.transaction_code}</td>
                       <td className="px-6 py-4 text-sm text-gray-700">
-                        {purchase.tier === 'PLATINUM_VIP' ? (
-                          <button
-                            onClick={() => handlePrintReceipt(purchase)}
-                            className="p-1 hover:bg-green-50 text-green-600 rounded transition"
-                            title="Cetak struk membership premium 58mm"
-                          >
-                            <Printer className="w-4 h-4" />
-                          </button>
-                        ) : (
-                          <span className="text-xs text-gray-400">-</span>
-                        )}
+                        <button
+                          onClick={() => handlePrintReceipt(purchase)}
+                          className="p-1 hover:bg-green-50 text-green-600 rounded transition"
+                          title="Cetak struk membership 58mm"
+                        >
+                          <Printer className="w-4 h-4" />
+                        </button>
                       </td>
                     </tr>
                   );
