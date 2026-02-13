@@ -23,10 +23,9 @@ const buildReceiptHtml = (title: string, body: string) => `<!doctype html>
 <html>
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=58mm, initial-scale=1" />
     <title>${title}</title>
     <style>
-      @page { size: 58mm; margin: 0; }
+      @page { size: 58mm auto; margin: 0; }
       * { box-sizing: border-box; }
       html, body { width: 58mm; margin: 0; padding: 0; }
       body {
@@ -49,12 +48,6 @@ const buildReceiptHtml = (title: string, body: string) => `<!doctype html>
       .small { font-size: 12px; }
       .wifi-info { margin-top: 2px; }
       .wifi-info .label { font-weight: 700; }
-      @media print {
-        html, body {
-          width: 58mm !important;
-          max-width: 58mm !important;
-        }
-      }
     </style>
   </head>
   <body>${body}</body>
@@ -69,7 +62,6 @@ const printWithIframe = (html: string) => {
   iframe.style.height = '0';
   iframe.style.border = '0';
   iframe.setAttribute('aria-hidden', 'true');
-  iframe.setAttribute('sandbox', 'allow-modals allow-same-origin');
 
   let hasPrinted = false;
   const cleanup = () => {
@@ -95,11 +87,9 @@ const printWithIframe = (html: string) => {
     setTimeout(() => {
       frameWindow.print();
     }, 150);
-    // Jangan hapus iframe terlalu cepat, terutama di tablet saat user mengganti device printer.
-    // Kalau iframe dibersihkan sebelum dialog selesai, browser bisa fallback mencetak halaman utama.
     setTimeout(() => {
       cleanup();
-    }, 120000);
+    }, 3000);
   };
 
   document.body.appendChild(iframe);
@@ -134,12 +124,9 @@ const openReceiptWindow = (title: string, body: string) => {
   popup.document.close();
   popup.focus();
 
-  popup.addEventListener('afterprint', () => {
-    popup.close();
-  }, { once: true });
-
   setTimeout(() => {
     popup.print();
+    popup.close();
   }, 300);
 };
 
