@@ -28,6 +28,8 @@ const buildReceiptHtml = (title: string, body: string) => `<!doctype html>
       @page { size: 58mm auto; margin: 0; }
       * { box-sizing: border-box; }
       html, body { width: 58mm; margin: 0; padding: 0; }
+      html { height: auto; }
+      body { min-height: auto; }
       body {
         font-family: 'Roboto Mono', 'SFMono-Regular', 'Consolas', 'Liberation Mono', 'Courier New', monospace;
         font-size: 13px;
@@ -48,6 +50,19 @@ const buildReceiptHtml = (title: string, body: string) => `<!doctype html>
       .small { font-size: 12px; }
       .wifi-info { margin-top: 2px; }
       .wifi-info .label { font-weight: 700; }
+      @media print {
+        @page { size: 58mm auto; margin: 0; }
+        html, body {
+          width: 58mm !important;
+          min-width: 58mm !important;
+          max-width: 58mm !important;
+          height: auto !important;
+          min-height: 0 !important;
+          overflow: visible !important;
+          break-inside: auto;
+          page-break-inside: auto;
+        }
+      }
     </style>
   </head>
   <body>${body}</body>
@@ -62,6 +77,7 @@ const printWithIframe = (html: string) => {
   iframe.style.height = '0';
   iframe.style.border = '0';
   iframe.setAttribute('aria-hidden', 'true');
+  iframe.setAttribute('sandbox', 'allow-modals allow-same-origin');
 
   let hasPrinted = false;
   const cleanup = () => {
@@ -87,9 +103,11 @@ const printWithIframe = (html: string) => {
     setTimeout(() => {
       frameWindow.print();
     }, 150);
+    // Jangan hapus iframe terlalu cepat, terutama di tablet saat user mengganti device printer.
+    // Kalau iframe dibersihkan sebelum dialog selesai, browser bisa fallback mencetak halaman utama.
     setTimeout(() => {
       cleanup();
-    }, 3000);
+    }, 120000);
   };
 
   document.body.appendChild(iframe);
@@ -124,9 +142,12 @@ const openReceiptWindow = (title: string, body: string) => {
   popup.document.close();
   popup.focus();
 
+  popup.addEventListener('afterprint', () => {
+    popup.close();
+  }, { once: true });
+
   setTimeout(() => {
     popup.print();
-    popup.close();
   }, 300);
 };
 
