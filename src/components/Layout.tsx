@@ -5,7 +5,6 @@ import {
   Car,
   LayoutDashboard,
   CreditCard,
-  Wallet,
   Crown,
   Tags,
   UserCircle,
@@ -39,12 +38,6 @@ const menuItems: MenuItem[] = [
     label: 'Kasir Harian',
     path: '/kasir',
     icon: <CreditCard className="w-5 h-5" />,
-    roles: ['SUPERADMIN', 'ADMIN'],
-  },
-  {
-    label: 'Pengeluaran',
-    path: '/pengeluaran',
-    icon: <Wallet className="w-5 h-5" />,
     roles: ['SUPERADMIN', 'ADMIN'],
   },
   {

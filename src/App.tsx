@@ -12,7 +12,6 @@ import { Karyawan } from './pages/admin/Karyawan';
 import { Customer } from './pages/admin/Customer';
 import { Laporan } from './pages/admin/Laporan';
 import { PembelianMember } from './pages/admin/PembelianMember';
-import { Pengeluaran } from './pages/admin/Pengeluaran';
 import { AdminKasir } from './pages/superadmin/AdminKasir';
 import { Perusahaan } from './pages/superadmin/Perusahaan';
 import { KaryawanDashboard } from './pages/karyawan/Dashboard';
@@ -74,16 +73,6 @@ export default function App() {
                 <ProtectedRoute allowedRoles={['SUPERADMIN']}>
                   <Layout>
                     <AdminDashboard />
-                  </Layout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/superadmin/pengeluaran"
-              element={
-                <ProtectedRoute allowedRoles={['SUPERADMIN']}>
-                  <Layout>
-                    <Pengeluaran />
                   </Layout>
                 </ProtectedRoute>
               }
@@ -185,16 +174,6 @@ export default function App() {
                 <ProtectedRoute allowedRoles={['SUPERADMIN', 'ADMIN']}>
                   <Layout>
                     <AdminDashboard />
-                  </Layout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/pengeluaran"
-              element={
-                <ProtectedRoute allowedRoles={['SUPERADMIN', 'ADMIN']}>
-                  <Layout>
-                    <Pengeluaran />
                   </Layout>
                 </ProtectedRoute>
               }

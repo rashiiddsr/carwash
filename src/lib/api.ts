@@ -2,8 +2,6 @@ import { authApi } from './auth';
 import {
   Category,
   CompanyProfile,
-  Expense,
-  ExpenseCategory,
   Membership,
   PointEntry,
   Transaction,
@@ -271,34 +269,6 @@ export const api = {
       return request<PointEntry[]>('/points', {}, { customerId: filters?.customerId });
     },
   },
-
-  expenses: {
-    async getAll(filters?: {
-      startDate?: string;
-      endDate?: string;
-      category?: ExpenseCategory | '';
-    }): Promise<Expense[]> {
-      return request<Expense[]>('/expenses', {}, {
-        startDate: filters?.startDate,
-        endDate: filters?.endDate,
-        category: filters?.category,
-      });
-    },
-
-    async create(data: {
-      expense_date: string;
-      amount: number;
-      category: ExpenseCategory;
-      notes: string;
-      employee_id?: string | null;
-    }): Promise<Expense> {
-      return request<Expense>('/expenses', {
-        method: 'POST',
-        body: JSON.stringify(data),
-      });
-    },
-  },
-
 
   company: {
     async get(): Promise<CompanyProfile> {
