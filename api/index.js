@@ -1495,14 +1495,6 @@ app.put('/transactions/:id', asyncHandler(async (req, res) => {
     return res.status(404).json({ message: 'Transaction not found' });
   }
 
-  if (!isAdminRole(req.user?.role)) {
-    return res.status(403).json({ message: 'Hanya admin/superadmin yang bisa mengubah transaksi' });
-  }
-
-  if (existingTransaction.status === 'DONE' && !isSuperAdmin(req.user?.role)) {
-    return res.status(403).json({ message: 'Transaksi selesai hanya bisa diubah oleh superadmin' });
-  }
-
   const resolvedCategoryId = category_id || existingTransaction.category_id;
   const [categoryRows] = await pool.query(
     'SELECT id, name, price FROM categories WHERE id = ? LIMIT 1',
@@ -1569,27 +1561,9 @@ app.put('/transactions/:id', asyncHandler(async (req, res) => {
 app.patch('/transactions/:id/status', asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
-  const requesterRole = req.user?.role;
 
   if (!status) {
     return res.status(400).json({ message: 'Status is required' });
-  }
-
-  if (!['QUEUED', 'WASHING', 'DONE'].includes(status)) {
-    return res.status(400).json({ message: 'Status tidak valid' });
-  }
-
-  if (!isAdminRole(requesterRole)) {
-    return res.status(403).json({ message: 'Hanya admin/superadmin yang bisa mengubah status transaksi' });
-  }
-
-  const existingTransaction = await fetchTransactionById(id);
-  if (!existingTransaction) {
-    return res.status(404).json({ message: 'Transaction not found' });
-  }
-
-  if (existingTransaction.status === 'DONE' && !isSuperAdmin(requesterRole)) {
-    return res.status(403).json({ message: 'Status transaksi selesai hanya bisa diubah oleh superadmin' });
   }
 
   await pool.query(
@@ -1646,19 +1620,6 @@ app.patch('/transactions/:id/status', asyncHandler(async (req, res) => {
 
 app.delete('/transactions/:id', asyncHandler(async (req, res) => {
   const { id } = req.params;
-
-  const transaction = await fetchTransactionById(id);
-  if (!transaction) {
-    return res.status(404).json({ message: 'Transaction not found' });
-  }
-
-  if (!isSuperAdmin(req.user?.role)) {
-    return res.status(403).json({ message: 'Hanya superadmin yang bisa menghapus/void transaksi' });
-  }
-
-  if (transaction.status !== 'DONE') {
-    return res.status(403).json({ message: 'Hanya transaksi selesai yang bisa dihapus/void' });
-  }
 
   await pool.query('DELETE FROM transactions WHERE id = ?', [id]);
   return res.json({ success: true });
