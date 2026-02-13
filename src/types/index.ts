@@ -28,6 +28,7 @@ export interface Transaction {
   car_brand: string;
   plate_number: string;
   employee_id: string;
+  created_by?: string | null;
   price: number;
   base_price?: number;
   discount_percent?: number;
@@ -42,6 +43,7 @@ export interface Transaction {
   customer?: User | null;
   category?: Category;
   employee?: User;
+  creator?: User | null;
 }
 
 export interface Vehicle {

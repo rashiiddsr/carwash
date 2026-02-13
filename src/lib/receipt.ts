@@ -158,6 +158,19 @@ const buildWifiInfo = () => `
   </div>
 `;
 
+const formatReceiptDateTime = (rawDate: string) => {
+  const date = new Date(rawDate);
+  return date.toLocaleString('id-ID', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  }).replace('.', ':');
+};
+
 export const printTransactionReceipt = ({
   transaction,
   company,
@@ -165,12 +178,13 @@ export const printTransactionReceipt = ({
   transaction: Transaction;
   company: CompanyProfile;
 }) => {
-  const createdAt = new Date(transaction.created_at).toLocaleString('id-ID');
+  const createdAt = formatReceiptDateTime(transaction.created_at);
   const body = `
     ${buildCompanyHeader(company, 'Carwash POS')}
     <div class="row"><span>ID</span><span class="bold">${escapeHtml(transaction.transaction_code)}</span></div>
-    <div class="row"><span>Tanggal</span><span>${escapeHtml(createdAt)}</span></div>
-    <div class="row"><span>Kasir</span><span>${escapeHtml(transaction.employee?.name || '-')}</span></div>
+    <div class="row"><span>Tanggal & Jam</span><span>${escapeHtml(createdAt)}</span></div>
+    <div class="row"><span>Kasir</span><span>${escapeHtml(transaction.creator?.name || '-')}</span></div>
+    <div class="row"><span>Karyawan</span><span>${escapeHtml(transaction.employee?.name || '-')}</span></div>
     <div class="line"></div>
     <div class="row"><span>Kategori</span><span>${escapeHtml(transaction.category?.name || '-')}</span></div>
     <div class="row"><span>Kendaraan</span><span>${escapeHtml(transaction.car_brand)}</span></div>

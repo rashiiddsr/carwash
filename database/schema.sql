@@ -13,8 +13,10 @@ CREATE TABLE IF NOT EXISTS users (
 
 INSERT INTO users (id, name, phone, password_hash, role)
 VALUES
-  (UUID(), 'Superadmin Royal Carwash', '082392130852', '$2b$12$jlhRwWc74ItUZj9puebRu.dCwuZPsf2XrBeCeqvDCuuA0Co1lKtXO', 'SUPERADMIN'),
-  (UUID(), 'Admin Royal Carwash', '08216205124', '$2b$12$jlhRwWc74ItUZj9puebRu.dCwuZPsf2XrBeCeqvDCuuA0Co1lKtXO', 'ADMIN');
+  (UUID(), 'M Teddy Syahputra', '082392130852', '$2a$12$GKe0XsQKmn4p7K5KPOLijuZHf8XG8rErecLrHBJ7EFGSeR9MPtdJy', 'SUPERADMIN'),
+  (UUID(), 'Vanessa', '08216205124', '$2a$12$NbzWkwMi/saoYQafPg.kCOLXlicuD1Vc1yY8jthuGq7FldU5NxZOy', 'ADMIN'),
+  (UUID(), 'Risky Ramadan', '085335142086', '$2a$12$NbzWkwMi/saoYQafPg.kCOLXlicuD1Vc1yY8jthuGq7FldU5NxZOy', 'KARYAWAN'),
+  (UUID(), 'Endra Saputra', '085136872024', '$2a$12$NbzWkwMi/saoYQafPg.kCOLXlicuD1Vc1yY8jthuGq7FldU5NxZOy', 'KARYAWAN');
 
 CREATE TABLE IF NOT EXISTS company_profiles (
   id CHAR(36) NOT NULL PRIMARY KEY,
@@ -108,6 +110,7 @@ CREATE TABLE IF NOT EXISTS transactions (
   car_brand VARCHAR(150) NOT NULL,
   plate_number VARCHAR(50) NOT NULL,
   employee_id CHAR(36) NOT NULL,
+  created_by CHAR(36) NULL,
   price DECIMAL(12,2) NOT NULL,
   base_price DECIMAL(12,2) NOT NULL DEFAULT 0,
   discount_percent DECIMAL(5,2) NOT NULL DEFAULT 0,
@@ -121,13 +124,15 @@ CREATE TABLE IF NOT EXISTS transactions (
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   CONSTRAINT fk_transactions_customer FOREIGN KEY (customer_id) REFERENCES users(id) ON DELETE SET NULL,
   CONSTRAINT fk_transactions_category FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE RESTRICT,
-  CONSTRAINT fk_transactions_employee FOREIGN KEY (employee_id) REFERENCES users(id) ON DELETE RESTRICT
+  CONSTRAINT fk_transactions_employee FOREIGN KEY (employee_id) REFERENCES users(id) ON DELETE RESTRICT,
+  CONSTRAINT fk_transactions_created_by FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
 );
 
 CREATE INDEX idx_transactions_trx_date ON transactions (trx_date);
 CREATE INDEX idx_transactions_status ON transactions (status);
 CREATE INDEX idx_transactions_category ON transactions (category_id);
 CREATE INDEX idx_transactions_employee ON transactions (employee_id);
+CREATE INDEX idx_transactions_created_by ON transactions (created_by);
 CREATE INDEX idx_transactions_customer ON transactions (customer_id);
 CREATE UNIQUE INDEX idx_transactions_transaction_code ON transactions (transaction_code);
 

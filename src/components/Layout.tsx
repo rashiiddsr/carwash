@@ -60,7 +60,7 @@ const menuItems: MenuItem[] = [
     roles: ['SUPERADMIN', 'ADMIN'],
     children: [
       { label: 'Kategori', path: '/kategori', icon: null, roles: ['SUPERADMIN', 'ADMIN'] },
-      { label: 'Karyawan', path: '/karyawan', icon: null, roles: ['SUPERADMIN', 'ADMIN'] },
+      { label: 'Karyawan', path: '/karyawan', icon: null, roles: ['SUPERADMIN'] },
       { label: 'Customer', path: '/customer', icon: null, roles: ['SUPERADMIN', 'ADMIN'] },
     ],
   },
