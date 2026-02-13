@@ -132,6 +132,35 @@ const buildPointEntry = (row) => ({
     : null,
 });
 
+const EXPENSE_CATEGORIES = new Set(['KASBON', 'OPERASIONAL', 'LAINNYA']);
+
+const buildExpense = (row) => ({
+  id: row.id,
+  expense_code: row.expense_code,
+  expense_date: row.expense_date,
+  amount: Number(row.amount) || 0,
+  category: row.category,
+  notes: row.notes,
+  employee_id: row.employee_id,
+  created_by: row.created_by,
+  created_at: row.created_at,
+  updated_at: row.updated_at,
+  employee: row.employee_ref_id
+    ? {
+        id: row.employee_ref_id,
+        name: row.employee_name,
+        phone: row.employee_phone,
+      }
+    : null,
+  creator: row.creator_ref_id
+    ? {
+        id: row.creator_ref_id,
+        name: row.creator_name,
+        phone: row.creator_phone,
+      }
+    : null,
+});
+
 const MEMBERSHIP_POINT_RATE = {
   BASIC: 1,
   BRONZE: 1,
@@ -173,6 +202,34 @@ const MEMBERSHIP_BASE_PRICE = {
 };
 
 const EXTRA_VEHICLE_PLATINUM_FEE = 149000;
+
+
+const calculateWeeklyWageForEmployee = async ({ employeeId, startDate, endDate }) => {
+  const [rows] = await pool.query(
+    `SELECT COALESCE(SUM(
+      CASE LOWER(c.name)
+        WHEN 'small/city car' THEN 15000
+        WHEN 'suv/mpv' THEN 16000
+        WHEN 'suv/mvp' THEN 16000
+        WHEN 'big suv/double cabin' THEN 17000
+        WHEN 'big suv/double chain' THEN 17000
+        WHEN 'small bike' THEN 6000
+        WHEN 'medium bike' THEN 7000
+        WHEN 'large bike' THEN 8000
+        ELSE 0
+      END
+    ), 0) AS weekly_wage
+     FROM transactions t
+     LEFT JOIN categories c ON t.category_id = c.id
+     WHERE t.employee_id = ?
+       AND t.status = 'DONE'
+       AND t.trx_date BETWEEN ? AND ?`,
+    [employeeId, startDate, endDate]
+  );
+
+  return Number(rows[0]?.weekly_wage || 0);
+};
+
 
 const createTransactionCode = (prefix) => {
   const datePart = new Date().toISOString().slice(0, 10).replace(/-/g, '');
@@ -403,6 +460,48 @@ const ensureCompanyProfileTable = async () => {
      FROM DUAL
      WHERE NOT EXISTS (SELECT 1 FROM company_profiles)`
   );
+};
+
+const ensureExpensesTable = async () => {
+  await pool.query(
+    `CREATE TABLE IF NOT EXISTS expenses (
+      id CHAR(36) NOT NULL PRIMARY KEY,
+      expense_code VARCHAR(40) NOT NULL,
+      expense_date DATE NOT NULL,
+      amount DECIMAL(12,2) NOT NULL,
+      category ENUM('KASBON', 'OPERASIONAL', 'LAINNYA') NOT NULL,
+      notes TEXT NOT NULL,
+      employee_id CHAR(36) NULL,
+      created_by CHAR(36) NOT NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      CONSTRAINT fk_expenses_employee FOREIGN KEY (employee_id) REFERENCES users(id) ON DELETE SET NULL,
+      CONSTRAINT fk_expenses_created_by FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE RESTRICT
+    )`
+  );
+
+  await pool.query('ALTER TABLE expenses ADD COLUMN IF NOT EXISTS expense_code VARCHAR(40) NULL AFTER id');
+  await pool.query("UPDATE expenses SET expense_code = CONCAT('EXP-', DATE_FORMAT(created_at, '%Y%m%d'), '-', UPPER(LEFT(REPLACE(id, '-', ''), 6))) WHERE expense_code IS NULL");
+  await pool.query('ALTER TABLE expenses MODIFY COLUMN expense_code VARCHAR(40) NOT NULL');
+  await pool.query('ALTER TABLE expenses ADD UNIQUE INDEX IF NOT EXISTS idx_expenses_expense_code (expense_code)');
+  await pool.query('CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses (expense_date)');
+  await pool.query('CREATE INDEX IF NOT EXISTS idx_expenses_category ON expenses (category)');
+  await pool.query('CREATE INDEX IF NOT EXISTS idx_expenses_employee ON expenses (employee_id)');
+};
+
+const getWeekRange = (rawDate) => {
+  const baseDate = new Date(`${rawDate}T00:00:00`);
+  const day = baseDate.getDay();
+  const diffToMonday = day === 0 ? -6 : 1 - day;
+  const start = new Date(baseDate);
+  start.setDate(baseDate.getDate() + diffToMonday);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+
+  return {
+    startDate: start.toISOString().slice(0, 10),
+    endDate: end.toISOString().slice(0, 10),
+  };
 };
 
 const computeTransactionPricing = async ({
@@ -1457,6 +1556,194 @@ app.delete('/transactions/:id', asyncHandler(async (req, res) => {
   return res.json({ success: true });
 }));
 
+app.get('/expenses', asyncHandler(async (req, res) => {
+  if (!isAdminRole(req.user?.role)) {
+    return res.status(403).json({ message: 'Hanya admin/superadmin yang bisa melihat pengeluaran' });
+  }
+
+  const { startDate, endDate, category } = req.query;
+  const conditions = [];
+  const values = [];
+
+  if (startDate && endDate) {
+    conditions.push('e.expense_date BETWEEN ? AND ?');
+    values.push(startDate, endDate);
+  }
+
+  if (category) {
+    conditions.push('e.category = ?');
+    values.push(category);
+  }
+
+  const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+
+  const [rows] = await pool.query(
+    `SELECT
+      e.*,
+      employee.id AS employee_ref_id,
+      employee.name AS employee_name,
+      employee.phone AS employee_phone,
+      creator.id AS creator_ref_id,
+      creator.name AS creator_name,
+      creator.phone AS creator_phone
+    FROM expenses e
+    LEFT JOIN users employee ON e.employee_id = employee.id
+    LEFT JOIN users creator ON e.created_by = creator.id
+    ${whereClause}
+    ORDER BY e.created_at DESC`,
+    values
+  );
+
+  return res.json(rows.map(buildExpense));
+}));
+
+app.post('/expenses', asyncHandler(async (req, res) => {
+  if (!isAdminRole(req.user?.role)) {
+    return res.status(403).json({ message: 'Hanya admin/superadmin yang bisa menambah pengeluaran' });
+  }
+
+  const { amount, category, notes, employee_id } = req.body;
+  const expenseDate = new Date().toISOString().slice(0, 10);
+
+  if (amount === undefined || !category || !notes) {
+    return res.status(400).json({ message: 'amount, category, dan notes wajib diisi' });
+  }
+
+  if (!EXPENSE_CATEGORIES.has(category)) {
+    return res.status(400).json({ message: 'Kategori pengeluaran tidak valid' });
+  }
+
+  const parsedAmount = Number(amount);
+  if (Number.isNaN(parsedAmount) || parsedAmount <= 0) {
+    return res.status(400).json({ message: 'Nominal pengeluaran harus lebih dari 0' });
+  }
+
+  let resolvedEmployeeId = null;
+  if (category === 'KASBON') {
+    if (!employee_id) {
+      return res.status(400).json({ message: 'Karyawan wajib dipilih untuk kasbon' });
+    }
+
+    const [employeeRows] = await pool.query(
+      "SELECT id FROM users WHERE id = ? AND role = 'KARYAWAN' LIMIT 1",
+      [employee_id]
+    );
+
+    if (!employeeRows.length) {
+      return res.status(404).json({ message: 'Karyawan tidak ditemukan' });
+    }
+
+    resolvedEmployeeId = employee_id;
+
+    const { startDate, endDate } = getWeekRange(expenseDate);
+    const [existingKasbonRows] = await pool.query(
+      `SELECT id
+       FROM expenses
+       WHERE category = 'KASBON'
+         AND employee_id = ?
+         AND expense_date BETWEEN ? AND ?
+       LIMIT 1`,
+      [resolvedEmployeeId, startDate, endDate]
+    );
+
+    if (existingKasbonRows.length) {
+      return res.status(400).json({ message: 'Karyawan sudah melakukan kasbon minggu ini' });
+    }
+
+    const weeklyWage = await calculateWeeklyWageForEmployee({
+      employeeId: resolvedEmployeeId,
+      startDate,
+      endDate,
+    });
+
+    const maxKasbon = weeklyWage * 0.3;
+    if (parsedAmount > maxKasbon) {
+      return res.status(400).json({ message: `Maksimal kasbon minggu ini ${maxKasbon}` });
+    }
+  }
+
+  const expenseId = randomUUID();
+  const expenseCode = createTransactionCode('EXP');
+  await pool.query(
+    `INSERT INTO expenses
+      (id, expense_code, expense_date, amount, category, notes, employee_id, created_by)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      expenseId,
+      expenseCode,
+      expenseDate,
+      parsedAmount,
+      category,
+      notes,
+      resolvedEmployeeId,
+      req.user.userId,
+    ]
+  );
+
+  const [rows] = await pool.query(
+    `SELECT
+      e.*,
+      employee.id AS employee_ref_id,
+      employee.name AS employee_name,
+      employee.phone AS employee_phone,
+      creator.id AS creator_ref_id,
+      creator.name AS creator_name,
+      creator.phone AS creator_phone
+    FROM expenses e
+    LEFT JOIN users employee ON e.employee_id = employee.id
+    LEFT JOIN users creator ON e.created_by = creator.id
+    WHERE e.id = ?
+    LIMIT 1`,
+    [expenseId]
+  );
+
+  return res.status(201).json(buildExpense(rows[0]));
+}));
+
+
+app.get('/expenses/weekly-kasbon-summary', asyncHandler(async (req, res) => {
+  if (!['KARYAWAN', 'ADMIN', 'SUPERADMIN'].includes(req.user?.role || '')) {
+    return res.status(403).json({ message: 'Role tidak diizinkan mengakses ringkasan kasbon' });
+  }
+
+  const targetEmployeeId = req.user?.role === 'KARYAWAN' ? req.user.userId : req.query.employeeId;
+
+  if (!targetEmployeeId) {
+    return res.status(400).json({ message: 'employeeId diperlukan' });
+  }
+
+  const { startDate, endDate } = getWeekRange(new Date().toISOString().slice(0, 10));
+
+  const weeklyWage = await calculateWeeklyWageForEmployee({
+    employeeId: targetEmployeeId,
+    startDate,
+    endDate,
+  });
+
+  const [kasbonRows] = await pool.query(
+    `SELECT COALESCE(SUM(amount), 0) AS total_kasbon
+     FROM expenses
+     WHERE category = 'KASBON'
+       AND employee_id = ?
+       AND expense_date BETWEEN ? AND ?`,
+    [targetEmployeeId, startDate, endDate]
+  );
+
+  const kasbonTaken = Number(kasbonRows[0]?.total_kasbon || 0);
+  const maxKasbon = weeklyWage * 0.3;
+
+  return res.json({
+    week_start: startDate,
+    week_end: endDate,
+    weekly_wage: weeklyWage,
+    max_kasbon: maxKasbon,
+    kasbon_taken: kasbonTaken,
+    has_kasbon: kasbonTaken > 0,
+    estimated_salary_after_kasbon: Math.max(0, weeklyWage - kasbonTaken),
+  });
+}));
+
+
 Promise.all([
   ensureUserRoleSupportsSuperAdmin(),
   ensureDefaultCategories(),
@@ -1464,6 +1751,7 @@ Promise.all([
   ensureMembershipReceiptColumns(),
   ensureTransactionPricingColumns(),
   ensureCompanyProfileTable(),
+  ensureExpensesTable(),
 ])
   .then(() => {
     app.listen(port, () => {
