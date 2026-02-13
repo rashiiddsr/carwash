@@ -29,8 +29,8 @@ const buildReceiptHtml = (title: string, body: string) => `<!doctype html>
       * { box-sizing: border-box; }
       html, body { width: 58mm; margin: 0; padding: 0; }
       body {
-        font-family: 'Roboto Mono', 'SFMono-Regular', 'Consolas', 'Liberation Mono', 'Courier New', monospace;
-        font-size: 13px;
+        font-family: 'Courier New', monospace;
+        font-size: 14px;
         line-height: 1.25;
         color: #111;
         padding: 2mm;
@@ -43,7 +43,6 @@ const buildReceiptHtml = (title: string, body: string) => `<!doctype html>
       .row span:first-child { flex: 0 0 auto; }
       .row span:last-child { flex: 1; text-align: right; word-break: break-word; }
       .bold { font-weight: 700; }
-      .receipt-text { white-space: pre-wrap; word-break: break-word; }
       .muted { color: #444; }
       img { max-width: 36mm; max-height: 20mm; object-fit: contain; margin-bottom: 4px; }
       .small { font-size: 12px; }
@@ -51,7 +50,7 @@ const buildReceiptHtml = (title: string, body: string) => `<!doctype html>
       .wifi-info .label { font-weight: 700; }
     </style>
   </head>
-  <body><div class="receipt-text">${body}</div></body>
+  <body>${body}</body>
 </html>`;
 
 const printWithIframe = (html: string) => {
