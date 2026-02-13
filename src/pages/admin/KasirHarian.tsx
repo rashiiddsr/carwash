@@ -10,6 +10,7 @@ import { Modal } from '../../components/ui/Modal';
 import { Plus, Edit, Eye, Filter, ShoppingCart, Printer } from 'lucide-react';
 import { Transaction } from '../../types';
 import { printTransactionReceipt } from '../../lib/receipt';
+import { useAuth } from '../../contexts/AuthContext';
 
 const transactionSchema = z.object({
   customer_id: z.string().optional().nullable(),
@@ -41,6 +42,7 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 export function KasirHarian() {
+  const { user } = useAuth();
   const today = getTodayDate();
   const [startDate, setStartDate] = useState(today);
   const [endDate, setEndDate] = useState(today);
@@ -304,6 +306,8 @@ export function KasirHarian() {
     updateStatusMutation.mutate({ id, status });
   };
 
+  const canEditDoneTransaction = user?.role === 'SUPERADMIN';
+
   const handlePrintReceipt = (transaction: Transaction) => {
     if (!companyProfile) {
       showError('Profil perusahaan belum termuat. Coba lagi.');
@@ -501,6 +505,9 @@ export function KasirHarian() {
                       {formatCurrency(transaction.price)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
+                      {transaction.status === 'DONE' && !canEditDoneTransaction ? (
+                        <StatusBadge status={transaction.status} />
+                      ) : (
                       <select
                         value={transaction.status}
                         onChange={(e) => handleStatusChange(transaction.id, e.target.value)}
@@ -510,6 +517,7 @@ export function KasirHarian() {
                         <option value="WASHING">Dicuci</option>
                         <option value="DONE">Selesai</option>
                       </select>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       <div className="flex items-center gap-2">
@@ -521,9 +529,9 @@ export function KasirHarian() {
                         </button>
                         <button
                           onClick={() => handleEdit(transaction)}
-                          disabled={transaction.status === 'DONE'}
+                          disabled={transaction.status === 'DONE' && !canEditDoneTransaction}
                           className="p-1 hover:bg-yellow-50 text-yellow-600 rounded transition disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
-                          title={transaction.status === 'DONE' ? 'Transaksi selesai tidak bisa diedit' : 'Edit transaksi'}
+                          title={transaction.status === 'DONE' && !canEditDoneTransaction ? 'Transaksi selesai hanya bisa diedit superadmin' : 'Edit transaksi'}
                         >
                           <Edit className="w-4 h-4" />
                         </button>

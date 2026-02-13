@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import {
@@ -104,10 +104,33 @@ const menuItems: MenuItem[] = [
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isDesktopView, setIsDesktopView] = useState(false);
   const [expandedMenu, setExpandedMenu] = useState<string | null>(null);
   const { user, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const mediaQuery = window.matchMedia('(min-width: 1024px)');
+
+    const syncLayout = (matchesDesktop: boolean) => {
+      setIsDesktopView(matchesDesktop);
+      setSidebarOpen(matchesDesktop);
+    };
+
+    syncLayout(mediaQuery.matches);
+
+    const handleChange = (event: MediaQueryListEvent) => {
+      syncLayout(event.matches);
+    };
+
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
+  }, []);
 
   if (!user) return null;
 
@@ -120,10 +143,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     return location.pathname === fullPath;
   };
 
-  const isChildActive = (children?: MenuItem[]) => {
-    if (!children) return false;
-    return children.some((child) => isActive(child.path));
-  };
+  const isChildActive = (children: MenuItem[]) => children.some((child) => isActive(child.path));
 
   const handleLogout = () => {
     logout();
@@ -134,49 +154,78 @@ export function Layout({ children }: { children: React.ReactNode }) {
     setExpandedMenu(expandedMenu === label ? null : label);
   };
 
+  const closeSidebarAfterNavigate = () => {
+    if (!isDesktopView) {
+      setSidebarOpen(false);
+    }
+  };
+
+  const findMenuTitle = () => {
+    for (const item of filteredMenuItems) {
+      if (item.path !== '#' && isActive(item.path)) {
+        return item.label;
+      }
+
+      const visibleChildren = (item.children || []).filter((child) => child.roles.includes(user.role));
+      const activeChild = visibleChildren.find((child) => isActive(child.path));
+      if (activeChild) {
+        return activeChild.label;
+      }
+    }
+
+    return 'Dashboard';
+  };
+
+  const currentTitle = findMenuTitle();
+
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="lg:hidden fixed top-0 left-0 right-0 bg-white border-b border-gray-200 z-30 px-4 py-3">
-        <div className="flex items-center justify-between">
+      <header
+        className={`fixed top-0 right-0 z-30 h-20 bg-white border-b border-gray-200 transition-all duration-300 ${
+          sidebarOpen ? 'left-0 lg:left-64' : 'left-0'
+        }`}
+      >
+        <div className="h-full px-4 lg:px-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <BrandLogo sizeClassName="w-10 h-10" iconClassName="w-6 h-6" textClassName="font-bold text-gray-900" />
-            <p className="text-xs text-gray-600">{user.name}</p>
+            <button
+              onClick={() => setSidebarOpen((prev) => !prev)}
+              className="h-10 w-10 rounded-xl border border-gray-200 bg-gray-50 text-gray-600 hover:bg-gray-100 transition flex items-center justify-center"
+              aria-label={sidebarOpen ? 'Tutup sidebar' : 'Buka sidebar'}
+            >
+              {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </button>
+            <div>
+              <p className="text-sm text-gray-500">Royal Carwash - POS</p>
+              <p className="text-3xl font-bold text-gray-900 leading-tight">{currentTitle}</p>
+            </div>
           </div>
-          <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="p-2 hover:bg-gray-100 rounded-lg transition"
-          >
-            {sidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-          </button>
+          <div className="hidden md:flex items-center gap-3 px-3 py-2 rounded-full border border-gray-200 bg-gray-50">
+            <div className="w-8 h-8 rounded-full bg-gray-200 text-gray-700 flex items-center justify-center text-sm">
+              {user.name.slice(0, 1).toUpperCase()}
+            </div>
+            <div className="leading-tight">
+              <p className="text-xs text-gray-500">Masuk sebagai</p>
+              <p className="text-sm font-semibold text-gray-900">{user.name}</p>
+            </div>
+          </div>
         </div>
-      </div>
+      </header>
 
       <aside
-        className={`fixed top-0 left-0 h-full bg-white border-r border-gray-200 transition-transform duration-300 z-40 ${
+        className={`fixed top-0 left-0 h-full bg-white border-r border-gray-200 transition-transform duration-300 z-40 w-64 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        } lg:translate-x-0 w-64`}
+        }`}
       >
-        <div className="p-6 border-b border-gray-200 hidden lg:block">
+        <div className="p-4 border-b border-gray-200">
           <BrandLogo subtitle="POS System" />
-        </div>
-
-        <div className="p-4 border-b border-gray-200 lg:hidden">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
-              <UserCircle className="w-6 h-6 text-gray-600" />
-            </div>
-            <div>
-              <p className="font-medium text-gray-900">{user.name}</p>
-              <p className="text-xs text-gray-600">{user.role}</p>
-            </div>
-          </div>
         </div>
 
         <nav className="p-4 flex-1 overflow-y-auto">
           <ul className="space-y-1">
             {filteredMenuItems.map((item) => {
-              const hasChildren = item.children && item.children.length > 0;
-              const isExpanded = expandedMenu === item.label || isChildActive(item.children);
+              const visibleChildren = (item.children || []).filter((child) => child.roles.includes(user.role));
+              const hasChildren = visibleChildren.length > 0;
+              const isExpanded = hasChildren && (expandedMenu === item.label || isChildActive(visibleChildren));
 
               return (
                 <li key={item.label}>
@@ -185,7 +234,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                       <button
                         onClick={() => toggleExpanded(item.label)}
                         className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-lg transition ${
-                          isChildActive(item.children)
+                          hasChildren && isChildActive(visibleChildren)
                             ? 'bg-blue-50 text-blue-600'
                             : 'text-gray-700 hover:bg-gray-50'
                         }`}
@@ -202,11 +251,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
                       </button>
                       {isExpanded && (
                         <ul className="mt-1 ml-4 space-y-1">
-                          {item.children?.map((child) => (
+                          {visibleChildren.map((child) => (
                             <li key={child.path}>
                               <Link
                                 to={rolePrefix + child.path}
-                                onClick={() => setSidebarOpen(false)}
+                                onClick={closeSidebarAfterNavigate}
                                 className={`block px-4 py-2 rounded-lg transition ${
                                   isActive(child.path)
                                     ? 'bg-blue-50 text-blue-600 font-medium'
@@ -223,7 +272,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   ) : (
                     <Link
                       to={rolePrefix + item.path}
-                      onClick={() => setSidebarOpen(false)}
+                      onClick={closeSidebarAfterNavigate}
                       className={`flex items-center gap-3 px-4 py-3 rounded-lg transition ${
                         isActive(item.path)
                           ? 'bg-blue-50 text-blue-600 font-medium'
@@ -243,7 +292,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <div className="p-4 border-t border-gray-200">
           <Link
             to={`${rolePrefix}/profil`}
-            onClick={() => setSidebarOpen(false)}
+            onClick={closeSidebarAfterNavigate}
             className={`flex items-center gap-3 px-4 py-3 rounded-lg transition mb-2 ${
               location.pathname === `${rolePrefix}/profil`
                 ? 'bg-blue-50 text-blue-600 font-medium'
@@ -263,14 +312,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
-      {sidebarOpen && (
+      {sidebarOpen && !isDesktopView && (
         <div
-          className="fixed inset-0 bg-black/50 z-30 lg:hidden"
+          className="fixed inset-0 bg-black/50 z-30"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
-      <main className="lg:ml-64 pt-16 lg:pt-0">
+      <main className={`${sidebarOpen ? 'lg:ml-64' : 'lg:ml-0'} pt-20 transition-all duration-300`}>
         <div className="p-6 lg:p-8">{children}</div>
       </main>
     </div>
