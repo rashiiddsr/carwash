@@ -59,7 +59,7 @@ const menuItems: MenuItem[] = [
     icon: <Tags className="w-5 h-5" />,
     roles: ['SUPERADMIN', 'ADMIN'],
     children: [
-      { label: 'Kategori', path: '/kategori', icon: null, roles: ['SUPERADMIN', 'ADMIN'] },
+      { label: 'Kategori', path: '/kategori', icon: null, roles: ['SUPERADMIN'] },
       { label: 'Karyawan', path: '/karyawan', icon: null, roles: ['SUPERADMIN'] },
       { label: 'Customer', path: '/customer', icon: null, roles: ['SUPERADMIN', 'ADMIN'] },
     ],
@@ -106,6 +106,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isDesktopView, setIsDesktopView] = useState(false);
   const [expandedMenu, setExpandedMenu] = useState<string | null>(null);
+  const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const { user, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -150,6 +151,16 @@ export function Layout({ children }: { children: React.ReactNode }) {
     navigate('/login');
   };
 
+  const goToProfile = () => {
+    setProfileDropdownOpen(false);
+    navigate(`${rolePrefix}/profil`);
+  };
+
+  const handleHeaderLogout = () => {
+    setProfileDropdownOpen(false);
+    handleLogout();
+  };
+
   const toggleExpanded = (label: string) => {
     setExpandedMenu(expandedMenu === label ? null : label);
   };
@@ -177,6 +188,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   };
 
   const currentTitle = findMenuTitle();
+  const displayRole = user.role.charAt(0) + user.role.slice(1).toLowerCase();
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -199,14 +211,50 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <p className="text-3xl font-bold text-gray-900 leading-tight">{currentTitle}</p>
             </div>
           </div>
-          <div className="hidden md:flex items-center gap-3 px-3 py-2 rounded-full border border-gray-200 bg-gray-50">
-            <div className="w-8 h-8 rounded-full bg-gray-200 text-gray-700 flex items-center justify-center text-sm">
-              {user.name.slice(0, 1).toUpperCase()}
-            </div>
-            <div className="leading-tight">
-              <p className="text-xs text-gray-500">Masuk sebagai</p>
-              <p className="text-sm font-semibold text-gray-900">{user.name}</p>
-            </div>
+          <div className="relative">
+            <button
+              onClick={() => setProfileDropdownOpen((prev) => !prev)}
+              className="flex items-center gap-3 px-3 py-2 rounded-full border border-gray-200 bg-gray-50 hover:bg-gray-100 transition"
+              aria-label="Buka menu profil"
+            >
+              <div className="w-8 h-8 rounded-full bg-gray-200 text-gray-700 flex items-center justify-center text-sm">
+                {user.name.slice(0, 1).toUpperCase()}
+              </div>
+              <div className="leading-tight text-left hidden sm:block">
+                <p className="text-xs text-gray-500">Masuk sebagai</p>
+                <p className="text-sm font-semibold text-gray-900">{user.name}</p>
+              </div>
+              <ChevronDown className={`w-4 h-4 text-gray-500 transition-transform ${profileDropdownOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {profileDropdownOpen && (
+              <>
+                <button
+                  onClick={() => setProfileDropdownOpen(false)}
+                  className="fixed inset-0 z-30"
+                  aria-label="Tutup menu profil"
+                />
+                <div className="absolute right-0 mt-2 w-72 bg-white rounded-2xl border border-gray-200 shadow-lg z-40 overflow-hidden">
+                  <div className="px-5 py-4 border-b border-gray-100">
+                    <p className="text-2xl font-bold text-gray-900 leading-tight">{user.name}</p>
+                    <p className="text-sm text-gray-500 mt-1">{displayRole}</p>
+                  </div>
+                  <button
+                    onClick={goToProfile}
+                    className="w-full text-left px-5 py-4 text-gray-700 hover:bg-gray-50 transition"
+                  >
+                    Pengaturan Profil
+                  </button>
+                  <button
+                    onClick={handleHeaderLogout}
+                    className="w-full flex items-center gap-2 px-5 py-4 text-red-600 hover:bg-red-50 transition"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    Logout
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </header>
@@ -302,13 +350,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <UserCircle className="w-5 h-5" />
             <span>Profil</span>
           </Link>
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-red-600 hover:bg-red-50 transition"
-          >
-            <LogOut className="w-5 h-5" />
-            <span>Logout</span>
-          </button>
         </div>
       </aside>
 
