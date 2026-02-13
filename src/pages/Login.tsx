@@ -90,27 +90,6 @@ export function Login() {
             </button>
           </form>
 
-          <div className="mt-8 pt-6 border-t border-gray-200">
-            <p className="text-xs text-gray-500 text-center">Akun Demo:</p>
-            <div className="mt-3 space-y-2 text-xs text-gray-600">
-              <div className="flex justify-between">
-                <span>Superadmin:</span>
-                <span className="font-mono">0812711101111 / 1234</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Admin:</span>
-                <span className="font-mono">081271110555 / 1234</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Karyawan:</span>
-                <span className="font-mono">0812711103333 / 1234</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Customer:</span>
-                <span className="font-mono">0812711104444 / 1234</span>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     </div>
