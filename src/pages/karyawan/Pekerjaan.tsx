@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../contexts/AuthContext';
 import { api } from '../../lib/api';
 import { formatCurrency, formatTime, formatDateISO } from '../../lib/utils';
+import { useToast } from '../../hooks/useToast';
 import { Briefcase, Filter } from 'lucide-react';
 
 function getLast7DaysRange() {
@@ -25,6 +26,9 @@ export function PekerjaanSaya() {
   const [endDate, setEndDate] = useState(initialRange.endDate);
   const [statusFilter, setStatusFilter] = useState('');
 
+  const queryClient = useQueryClient();
+  const { showSuccess, showError, ToastComponent } = useToast();
+
   const { data: transactions = [], isLoading } = useQuery({
     queryKey: ['transactions', 'employee', user?.id, startDate, endDate, statusFilter],
     queryFn: () =>
@@ -36,6 +40,22 @@ export function PekerjaanSaya() {
       }),
   });
 
+  const updateStatusMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: string }) =>
+      api.transactions.updateStatus(id, status),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      showSuccess('Status berhasil diupdate');
+    },
+    onError: (error) => {
+      showError(error instanceof Error ? error.message : 'Gagal mengupdate status');
+    },
+  });
+
+  const handleStatusChange = (id: string, status: string) => {
+    updateStatusMutation.mutate({ id, status });
+  };
+
   const setLast7Days = () => {
     const range = getLast7DaysRange();
     setStartDate(range.startDate);
@@ -44,6 +64,8 @@ export function PekerjaanSaya() {
 
   return (
     <div className="space-y-6">
+      {ToastComponent}
+
       <div>
         <h1 className="text-3xl font-bold text-gray-900">Pekerjaan Saya</h1>
         <p className="text-gray-600 mt-1">Default menampilkan data 7 hari terakhir agar progres tetap terlihat</p>
@@ -131,6 +153,9 @@ export function PekerjaanSaya() {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                     Status
                   </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    Aksi
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
@@ -170,6 +195,17 @@ export function PekerjaanSaya() {
                           ? 'Dicuci'
                           : 'Selesai'}
                       </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      <select
+                        value={transaction.status}
+                        onChange={(e) => handleStatusChange(transaction.id, e.target.value)}
+                        className="text-xs font-medium px-2 py-1 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                      >
+                        <option value="QUEUED">Antri</option>
+                        <option value="WASHING">Dicuci</option>
+                        <option value="DONE">Selesai</option>
+                      </select>
                     </td>
                   </tr>
                 ))}

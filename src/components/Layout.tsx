@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import {
@@ -60,6 +60,7 @@ const menuItems: MenuItem[] = [
     roles: ['SUPERADMIN', 'ADMIN'],
     children: [
       { label: 'Kategori', path: '/kategori', icon: null, roles: ['SUPERADMIN', 'ADMIN'] },
+      { label: 'Karyawan', path: '/karyawan', icon: null, roles: ['SUPERADMIN'] },
       { label: 'Customer', path: '/customer', icon: null, roles: ['SUPERADMIN', 'ADMIN'] },
     ],
   },
@@ -103,33 +104,10 @@ const menuItems: MenuItem[] = [
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [isDesktopView, setIsDesktopView] = useState(false);
   const [expandedMenu, setExpandedMenu] = useState<string | null>(null);
   const { user, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-
-  useEffect(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-
-    const mediaQuery = window.matchMedia('(min-width: 1024px)');
-
-    const syncLayout = (matchesDesktop: boolean) => {
-      setIsDesktopView(matchesDesktop);
-      setSidebarOpen(matchesDesktop);
-    };
-
-    syncLayout(mediaQuery.matches);
-
-    const handleChange = (event: MediaQueryListEvent) => {
-      syncLayout(event.matches);
-    };
-
-    mediaQuery.addEventListener('change', handleChange);
-    return () => mediaQuery.removeEventListener('change', handleChange);
-  }, []);
 
   if (!user) return null;
 
@@ -156,24 +134,17 @@ export function Layout({ children }: { children: React.ReactNode }) {
     setExpandedMenu(expandedMenu === label ? null : label);
   };
 
-  const closeSidebarAfterNavigate = () => {
-    if (!isDesktopView) {
-      setSidebarOpen(false);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="fixed top-0 left-0 right-0 bg-white border-b border-gray-200 z-30 px-4 py-3">
+      <div className="lg:hidden fixed top-0 left-0 right-0 bg-white border-b border-gray-200 z-30 px-4 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <BrandLogo sizeClassName="w-10 h-10" iconClassName="w-6 h-6" textClassName="font-bold text-gray-900" />
             <p className="text-xs text-gray-600">{user.name}</p>
           </div>
           <button
-            onClick={() => setSidebarOpen((prev) => !prev)}
+            onClick={() => setSidebarOpen(!sidebarOpen)}
             className="p-2 hover:bg-gray-100 rounded-lg transition"
-            aria-label={sidebarOpen ? 'Tutup sidebar' : 'Buka sidebar'}
           >
             {sidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
@@ -181,12 +152,24 @@ export function Layout({ children }: { children: React.ReactNode }) {
       </div>
 
       <aside
-        className={`fixed top-0 left-0 h-full bg-white border-r border-gray-200 transition-transform duration-300 z-40 w-64 ${
+        className={`fixed top-0 left-0 h-full bg-white border-r border-gray-200 transition-transform duration-300 z-40 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
+        } lg:translate-x-0 w-64`}
       >
-        <div className="p-6 border-b border-gray-200 mt-16">
+        <div className="p-6 border-b border-gray-200 hidden lg:block">
           <BrandLogo subtitle="POS System" />
+        </div>
+
+        <div className="p-4 border-b border-gray-200 lg:hidden">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+              <UserCircle className="w-6 h-6 text-gray-600" />
+            </div>
+            <div>
+              <p className="font-medium text-gray-900">{user.name}</p>
+              <p className="text-xs text-gray-600">{user.role}</p>
+            </div>
+          </div>
         </div>
 
         <nav className="p-4 flex-1 overflow-y-auto">
@@ -223,7 +206,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                             <li key={child.path}>
                               <Link
                                 to={rolePrefix + child.path}
-                                onClick={closeSidebarAfterNavigate}
+                                onClick={() => setSidebarOpen(false)}
                                 className={`block px-4 py-2 rounded-lg transition ${
                                   isActive(child.path)
                                     ? 'bg-blue-50 text-blue-600 font-medium'
@@ -240,7 +223,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   ) : (
                     <Link
                       to={rolePrefix + item.path}
-                      onClick={closeSidebarAfterNavigate}
+                      onClick={() => setSidebarOpen(false)}
                       className={`flex items-center gap-3 px-4 py-3 rounded-lg transition ${
                         isActive(item.path)
                           ? 'bg-blue-50 text-blue-600 font-medium'
@@ -260,7 +243,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <div className="p-4 border-t border-gray-200">
           <Link
             to={`${rolePrefix}/profil`}
-            onClick={closeSidebarAfterNavigate}
+            onClick={() => setSidebarOpen(false)}
             className={`flex items-center gap-3 px-4 py-3 rounded-lg transition mb-2 ${
               location.pathname === `${rolePrefix}/profil`
                 ? 'bg-blue-50 text-blue-600 font-medium'
@@ -280,14 +263,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
-      {sidebarOpen && !isDesktopView && (
+      {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-30"
+          className="fixed inset-0 bg-black/50 z-30 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
-      <main className={`${sidebarOpen ? 'lg:ml-64' : 'lg:ml-0'} pt-16 transition-all duration-300`}>
+      <main className="lg:ml-64 pt-16 lg:pt-0">
         <div className="p-6 lg:p-8">{children}</div>
       </main>
     </div>
