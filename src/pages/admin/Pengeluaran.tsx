@@ -71,7 +71,15 @@ export function Pengeluaran() {
     },
   });
 
+
   const selectedCategory = watch('category');
+  const selectedEmployeeId = watch('employee_id');
+
+  const { data: weeklyKasbonSummary } = useQuery({
+    queryKey: ['expenses', 'weekly-kasbon-summary', selectedEmployeeId],
+    queryFn: () => api.expenses.getWeeklyKasbonSummary(selectedEmployeeId || ''),
+    enabled: selectedCategory === 'KASBON' && Boolean(selectedEmployeeId),
+  });
   const totalExpense = useMemo(
     () => expenses.reduce((sum: number, item: Expense) => sum + Number(item.amount || 0), 0),
     [expenses]
@@ -215,6 +223,23 @@ export function Pengeluaran() {
                 {employees.map((employee) => <option key={employee.id} value={employee.id}>{employee.name}</option>)}
               </select>
               {errors.employee_id && <p className="text-red-500 text-xs mt-1">{errors.employee_id.message}</p>}
+
+              {weeklyKasbonSummary && (
+                <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 space-y-1">
+                  <p>
+                    <span className="font-semibold">Limit kasbon minggu ini (30%): </span>
+                    {formatCurrency(weeklyKasbonSummary.max_kasbon)}
+                  </p>
+                  <p>
+                    <span className="font-semibold">Kasbon terpakai minggu ini: </span>
+                    {formatCurrency(weeklyKasbonSummary.kasbon_taken)}
+                  </p>
+                  <p>
+                    <span className="font-semibold">Sisa limit kasbon: </span>
+                    {formatCurrency(Math.max(weeklyKasbonSummary.max_kasbon - weeklyKasbonSummary.kasbon_taken, 0))}
+                  </p>
+                </div>
+              )}
             </div>
           )}
           <div>

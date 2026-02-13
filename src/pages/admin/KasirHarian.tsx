@@ -17,7 +17,7 @@ const transactionSchema = z.object({
   category_id: z.string().min(1, 'Kategori wajib dipilih'),
   car_brand: z.string().min(1, 'Merk mobil wajib diisi'),
   plate_number: z.string().min(1, 'Nomor polisi wajib diisi'),
-  employee_id: z.string().min(1, 'Karyawan wajib dipilih'),
+  employee_id: z.string().min(1, 'Karyawan yang mencuci wajib dipilih'),
   notes: z.string().optional().nullable(),
   rain_guarantee_free: z.boolean().optional(),
 });
@@ -666,7 +666,7 @@ export function KasirHarian() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Karyawan <span className="text-red-500">*</span>
+              Karyawan (Yang Nyuci) <span className="text-red-500">*</span>
             </label>
             <select
               {...register('employee_id')}
@@ -841,7 +841,7 @@ export function KasirHarian() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Karyawan <span className="text-red-500">*</span>
+              Karyawan (Yang Nyuci) <span className="text-red-500">*</span>
             </label>
             <select
               {...register('employee_id')}
@@ -937,7 +937,7 @@ export function KasirHarian() {
               </div>
             </div>
             <div>
-              <p className="text-sm text-gray-600">Karyawan</p>
+              <p className="text-sm text-gray-600">Karyawan (Yang Nyuci)</p>
               <p className="font-medium">{selectedTransaction.employee?.name}</p>
             </div>
             <div>

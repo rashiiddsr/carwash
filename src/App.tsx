@@ -230,16 +230,6 @@ export default function App() {
               }
             />
             <Route
-              path="/admin/karyawan"
-              element={
-                <ProtectedRoute allowedRoles={['SUPERADMIN', 'ADMIN']}>
-                  <Layout>
-                    <Karyawan />
-                  </Layout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
               path="/admin/customer"
               element={
                 <ProtectedRoute allowedRoles={['SUPERADMIN', 'ADMIN']}>

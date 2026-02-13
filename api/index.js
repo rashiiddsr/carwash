@@ -249,17 +249,32 @@ const DEFAULT_CATEGORIES = [
   { name: 'Large Bike', price: 30000 },
 ];
 
-const DEFAULT_PASSWORD_HASH = '$2b$12$jlhRwWc74ItUZj9puebRu.dCwuZPsf2XrBeCeqvDCuuA0Co1lKtXO';
+const DEFAULT_SUPERADMIN_PASSWORD_HASH = '$2a$12$GKe0XsQKmn4p7K5KPOLijuZHf8XG8rErecLrHBJ7EFGSeR9MPtdJy';
+const DEFAULT_STANDARD_PASSWORD_HASH = '$2a$12$NbzWkwMi/saoYQafPg.kCOLXlicuD1Vc1yY8jthuGq7FldU5NxZOy';
 const REQUIRED_DEFAULT_USERS = [
   {
-    name: 'Superadmin Royal Carwash',
+    name: 'M Teddy Syahputra',
     phone: '082392130852',
     role: 'SUPERADMIN',
+    passwordHash: DEFAULT_SUPERADMIN_PASSWORD_HASH,
   },
   {
-    name: 'Admin Royal Carwash',
+    name: 'Vanessa',
     phone: '08216205124',
     role: 'ADMIN',
+    passwordHash: DEFAULT_STANDARD_PASSWORD_HASH,
+  },
+  {
+    name: 'Risky Ramadan',
+    phone: '085335142086',
+    role: 'KARYAWAN',
+    passwordHash: DEFAULT_STANDARD_PASSWORD_HASH,
+  },
+  {
+    name: 'Endra Saputra',
+    phone: '085136872024',
+    role: 'KARYAWAN',
+    passwordHash: DEFAULT_STANDARD_PASSWORD_HASH,
   },
 ];
 const LEGACY_DEMO_PHONES = ['0812711101111', '081271110555', '0812711103333', '0812711104444'];
@@ -273,6 +288,7 @@ const buildTransaction = (row) => ({
   car_brand: row.car_brand,
   plate_number: row.plate_number,
   employee_id: row.employee_id,
+  created_by: row.created_by,
   price: Number(row.price) || 0,
   base_price: Number(row.base_price) || Number(row.price) || 0,
   discount_percent: Number(row.discount_percent) || 0,
@@ -303,6 +319,13 @@ const buildTransaction = (row) => ({
         id: row.employee_ref_id,
         name: row.employee_name,
         phone: row.employee_phone,
+      }
+    : null,
+  creator: row.creator_ref_id
+    ? {
+        id: row.creator_ref_id,
+        name: row.creator_name,
+        phone: row.creator_phone,
       }
     : null,
 });
@@ -346,11 +369,15 @@ const fetchTransactionById = async (id) => {
       category.price AS category_price,
       employee.id AS employee_ref_id,
       employee.name AS employee_name,
-      employee.phone AS employee_phone
+      employee.phone AS employee_phone,
+      creator.id AS creator_ref_id,
+      creator.name AS creator_name,
+      creator.phone AS creator_phone
     FROM transactions t
     LEFT JOIN users customer ON t.customer_id = customer.id
     LEFT JOIN categories category ON t.category_id = category.id
     LEFT JOIN users employee ON t.employee_id = employee.id
+    LEFT JOIN users creator ON t.created_by = creator.id
     WHERE t.id = ?
     LIMIT 1`,
     [id]
@@ -447,6 +474,11 @@ const ensureTransactionPricingColumns = async () => {
   await pool.query('ALTER TABLE transactions ADD COLUMN IF NOT EXISTS is_rain_guarantee_free BOOLEAN NOT NULL DEFAULT FALSE AFTER is_loyalty_free');
 };
 
+const ensureTransactionCreatorColumn = async () => {
+  await pool.query('ALTER TABLE transactions ADD COLUMN IF NOT EXISTS created_by CHAR(36) NULL AFTER employee_id');
+  await pool.query('ALTER TABLE transactions ADD INDEX IF NOT EXISTS idx_transactions_created_by (created_by)');
+};
+
 const ensureUserRoleSupportsSuperAdmin = async () => {
   await pool.query(
     "ALTER TABLE users MODIFY COLUMN role ENUM('SUPERADMIN', 'ADMIN', 'KARYAWAN', 'CUSTOMER') NOT NULL"
@@ -489,7 +521,7 @@ const ensureProductionDefaultUsers = async () => {
          role = VALUES(role),
          password_hash = VALUES(password_hash),
          updated_at = CURRENT_TIMESTAMP`,
-      [defaultUser.name, defaultUser.phone, defaultUser.role, DEFAULT_PASSWORD_HASH]
+      [defaultUser.name, defaultUser.phone, defaultUser.role, defaultUser.passwordHash]
     );
   }
 };
@@ -1317,11 +1349,15 @@ app.get('/transactions', asyncHandler(async (req, res) => {
       category.price AS category_price,
       employee.id AS employee_ref_id,
       employee.name AS employee_name,
-      employee.phone AS employee_phone
+      employee.phone AS employee_phone,
+      creator.id AS creator_ref_id,
+      creator.name AS creator_name,
+      creator.phone AS creator_phone
     FROM transactions t
     LEFT JOIN users customer ON t.customer_id = customer.id
     LEFT JOIN categories category ON t.category_id = category.id
     LEFT JOIN users employee ON t.employee_id = employee.id
+    LEFT JOIN users creator ON t.created_by = creator.id
     ${whereClause}
     ORDER BY t.created_at DESC`,
     values
@@ -1408,10 +1444,10 @@ app.post('/transactions', asyncHandler(async (req, res) => {
   const transactionCode = createTransactionCode('CW');
   await pool.query(
     `INSERT INTO transactions
-      (id, transaction_code, trx_date, customer_id, category_id, car_brand, plate_number, employee_id, price, base_price,
+      (id, transaction_code, trx_date, customer_id, category_id, car_brand, plate_number, employee_id, created_by, price, base_price,
        discount_percent, discount_amount, is_membership_quota_free, is_loyalty_free, is_rain_guarantee_free,
        notes, status)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'QUEUED')`,
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'QUEUED')`,
     [
       transactionId,
       transactionCode,
@@ -1421,6 +1457,7 @@ app.post('/transactions', asyncHandler(async (req, res) => {
       car_brand,
       plate_number,
       employee_id,
+      req.user.userId,
       pricing.final_price,
       pricing.base_price,
       pricing.discount_percent,
@@ -1782,6 +1819,7 @@ Promise.all([
   ensureTransactionReceiptColumns(),
   ensureMembershipReceiptColumns(),
   ensureTransactionPricingColumns(),
+  ensureTransactionCreatorColumn(),
   ensureCompanyProfileTable(),
   ensureProductionDefaultUsers(),
   ensureExpensesTable(),
