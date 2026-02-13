@@ -112,3 +112,21 @@ export interface TransactionPricingPreview {
   is_rain_guarantee_free: boolean;
   final_price: number;
 }
+
+export type ExpenseCategory = 'KASBON' | 'OPERASIONAL' | 'LAINNYA';
+
+export interface Expense {
+  id: string;
+  expense_code: string;
+  expense_date: string;
+  amount: number;
+  category: ExpenseCategory;
+  notes: string;
+  employee_id: string | null;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+  employee?: User | null;
+  creator?: User | null;
+}
+
