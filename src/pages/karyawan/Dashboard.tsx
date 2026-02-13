@@ -108,6 +108,13 @@ export function KaryawanDashboard() {
       }),
   });
 
+
+  const { data: weeklyKasbonSummary } = useQuery({
+    queryKey: ['expenses', 'employee', 'weekly-kasbon-summary', user?.id],
+    queryFn: () => api.expenses.getWeeklyKasbonSummary(),
+    enabled: Boolean(user?.id),
+  });
+
   const totalJobs = transactions.length;
   const completedJobs = transactions.filter((t) => t.status === 'DONE').length;
   const activeJobs = transactions.filter((t) => t.status !== 'DONE');
@@ -119,6 +126,10 @@ export function KaryawanDashboard() {
 
   const weeklyWage = calculateWeeklyWageByCategory(weeklyCategories);
   const realtimeWeeklyWage = calculateWeeklyWageByCategory(realtimeWeeklyCategories);
+
+  const kasbonLimit = weeklyKasbonSummary?.max_kasbon ?? (realtimeWeeklyWage.total * 0.3);
+  const hasKasbonThisWeek = Boolean(weeklyKasbonSummary?.has_kasbon);
+  const estimatedSalaryAfterKasbon = weeklyKasbonSummary?.estimated_salary_after_kasbon ?? realtimeWeeklyWage.total;
 
   return (
     <div className="space-y-6">
@@ -229,6 +240,27 @@ export function KaryawanDashboard() {
               </tfoot>
             </table>
           </div>
+        </div>
+      </div>
+
+
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100">
+        <div className="p-6 border-b border-gray-100">
+          <h2 className="text-lg font-semibold text-gray-900">Info Kasbon Mingguan</h2>
+          <p className="text-sm text-gray-600 mt-1">Periode {weekRange.start} s/d {weekRange.end}</p>
+        </div>
+        <div className="p-6">
+          {hasKasbonThisWeek ? (
+            <div className="bg-amber-50 border border-amber-100 rounded-lg p-4 text-amber-800">
+              <p className="font-medium">Kasbon minggu ini sudah diambil.</p>
+              <p className="text-sm mt-1">Estimasi gaji setelah potong kasbon: <span className="font-semibold">{formatCurrency(estimatedSalaryAfterKasbon)}</span></p>
+            </div>
+          ) : (
+            <div className="bg-emerald-50 border border-emerald-100 rounded-lg p-4 text-emerald-800">
+              <p className="font-medium">Batas kasbon minggu ini (30% dari gaji mingguan):</p>
+              <p className="text-2xl font-bold mt-1">{formatCurrency(kasbonLimit)}</p>
+            </div>
+          )}
         </div>
       </div>
 

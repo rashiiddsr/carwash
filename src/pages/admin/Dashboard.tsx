@@ -10,6 +10,24 @@ import {
   CheckCircle,
 } from 'lucide-react';
 
+
+const WAGE_BY_CATEGORY: Record<string, number> = {
+  'small/city car': 15000,
+  'suv/mpv': 16000,
+  'suv/mvp': 16000,
+  'big suv/double cabin': 17000,
+  'big suv/double chain': 17000,
+  'small bike': 6000,
+  'medium bike': 7000,
+  'large bike': 8000,
+};
+
+const toWageByCategoryName = (categoryName: string) => {
+  const normalized = (categoryName || '').trim().toLowerCase();
+  return WAGE_BY_CATEGORY[normalized] || 0;
+};
+
+
 function StatCard({
   title,
   value,
@@ -52,6 +70,22 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
+
+function getCurrentWeekRange(date = new Date()) {
+  const baseDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const day = baseDate.getDay();
+  const diffToMonday = day === 0 ? -6 : 1 - day;
+  const start = new Date(baseDate);
+  start.setDate(baseDate.getDate() + diffToMonday);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+
+  return {
+    startDate: start.toISOString().slice(0, 10),
+    endDate: end.toISOString().slice(0, 10),
+  };
+}
+
 export function AdminDashboard() {
   const today = getTodayDate();
   const todayDate = new Date();
@@ -81,11 +115,30 @@ export function AdminDashboard() {
     queryFn: () => api.memberships.getAll({ includeExpired: true }),
   });
 
+  const { startDate: weekStartDate, endDate: weekEndDate } = getCurrentWeekRange(todayDate);
+
+  const { data: employees = [] } = useQuery({
+    queryKey: ['users', 'dashboard', 'KARYAWAN'],
+    queryFn: () => api.users.getAll('KARYAWAN'),
+  });
+
+  const { data: weeklyKasbon = [] } = useQuery({
+    queryKey: ['expenses', 'dashboard', 'weekly-kasbon', weekStartDate, weekEndDate],
+    queryFn: () => api.expenses.getAll({ startDate: weekStartDate, endDate: weekEndDate, category: 'KASBON' }),
+  });
+
+  const { data: todayExpenses = [] } = useQuery({
+    queryKey: ['expenses', 'dashboard', 'today', today],
+    queryFn: () => api.expenses.getAll({ startDate: today, endDate: today }),
+  });
+
   const totalTransactions = transactions.length;
   const omzetCuciHarian = transactions.reduce((sum, t) => sum + toSafeNumber(t.price), 0);
   const membershipHarianList = membershipToday.filter((purchase) => purchase.created_at.slice(0, 10) === today);
   const omzetMembershipHarian = membershipHarianList.reduce((sum, purchase) => sum + toSafeNumber(purchase.total_price), 0);
   const totalRevenue = omzetCuciHarian + omzetMembershipHarian;
+  const totalPengeluaranHariIni = todayExpenses.reduce((sum, expense) => sum + toSafeNumber(expense.amount), 0);
+  const aktualHariIni = totalRevenue - totalPengeluaranHariIni;
   const omzetCuciAkumulatif = allTransactions.reduce((sum, transaction) => sum + toSafeNumber(transaction.price), 0);
   const omzetMembershipAkumulatif = allMemberships.reduce((sum, purchase) => sum + toSafeNumber(purchase.total_price), 0);
   const omzetAkumulatif = omzetCuciAkumulatif + omzetMembershipAkumulatif;
@@ -99,6 +152,30 @@ export function AdminDashboard() {
     .filter((entry) => getDaysRemaining(entry.expiresAt, todayDate) <= 30)
     .reduce((sum, entry) => sum + entry.points, 0);
   const upcomingPoints = pointSummary.activeEntries.slice(0, 5);
+
+  const kasbonDashboardRows = employees.map((employee) => {
+    const weeklyWage = allTransactions
+      .filter((transaction) =>
+        transaction.employee_id === employee.id
+        && transaction.status === 'DONE'
+        && transaction.trx_date >= weekStartDate
+        && transaction.trx_date <= weekEndDate
+      )
+      .reduce((sum, transaction) => sum + toWageByCategoryName(transaction.category?.name || ''), 0);
+
+    const kasbonEntry = weeklyKasbon.find((expense) => expense.employee_id === employee.id);
+    const maxKasbon = weeklyWage * 0.3;
+
+    return {
+      employee,
+      weeklyWage,
+      maxKasbon,
+      hasKasbon: Boolean(kasbonEntry),
+      kasbonAmount: toSafeNumber(kasbonEntry?.amount),
+      kasbonNotes: kasbonEntry?.notes || '',
+      estimatedSalaryAfterKasbon: Math.max(0, weeklyWage - toSafeNumber(kasbonEntry?.amount)),
+    };
+  });
 
   if (isLoading) {
     return (
@@ -127,6 +204,12 @@ export function AdminDashboard() {
           value={formatCurrency(totalRevenue)}
           icon={<DollarSign className="w-6 h-6 text-green-600" />}
           color="bg-green-50"
+        />
+        <StatCard
+          title="Aktual Bersih Hari Ini"
+          value={formatCurrency(aktualHariIni)}
+          icon={<DollarSign className="w-6 h-6 text-rose-600" />}
+          color="bg-rose-50"
         />
         <StatCard
           title="Omzet Cuci Hari Ini"
@@ -250,6 +333,65 @@ export function AdminDashboard() {
               </div>
             </div>
           )}
+        </div>
+      </div>
+
+
+
+      <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Ringkasan Aktual Hari Ini</h2>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
+          <div className="bg-sky-50 border border-sky-100 rounded-lg p-4">
+            <p className="text-sky-700">Duit Kasir Hari Ini</p>
+            <p className="text-lg font-bold text-sky-900">{formatCurrency(omzetCuciHarian)}</p>
+          </div>
+          <div className="bg-violet-50 border border-violet-100 rounded-lg p-4">
+            <p className="text-violet-700">Duit Membership Hari Ini</p>
+            <p className="text-lg font-bold text-violet-900">{formatCurrency(omzetMembershipHarian)}</p>
+          </div>
+          <div className="bg-red-50 border border-red-100 rounded-lg p-4">
+            <p className="text-red-700">Pengeluaran Hari Ini</p>
+            <p className="text-lg font-bold text-red-900">- {formatCurrency(totalPengeluaranHariIni)}</p>
+          </div>
+          <div className="bg-emerald-50 border border-emerald-100 rounded-lg p-4">
+            <p className="text-emerald-700">Aktual Bersih</p>
+            <p className="text-lg font-bold text-emerald-900">{formatCurrency(aktualHariIni)}</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100">
+        <div className="p-6 border-b border-gray-100">
+          <h2 className="text-lg font-semibold text-gray-900">Batas Kasbon Minggu Ini (30%)</h2>
+          <p className="text-sm text-gray-600 mt-1">Periode {weekStartDate} s/d {weekEndDate}</p>
+        </div>
+        <div className="p-6 space-y-3">
+          {kasbonDashboardRows.length === 0 ? (
+            <p className="text-sm text-gray-500">Belum ada data karyawan.</p>
+          ) : kasbonDashboardRows.map((row) => (
+            <div key={row.employee.id} className="border border-gray-100 rounded-lg p-4">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                <div>
+                  <p className="font-semibold text-gray-900">{row.employee.name}</p>
+                  <p className="text-sm text-gray-600">Gaji mingguan: {formatCurrency(row.weeklyWage)}</p>
+                </div>
+                {row.hasKasbon ? (
+                  <div className="text-sm text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+                    Sudah kasbon {formatCurrency(row.kasbonAmount)} minggu ini.
+                    Estimasi gaji setelah potong kasbon: {formatCurrency(row.estimatedSalaryAfterKasbon)}
+                  </div>
+                ) : (
+                  <div className="text-right">
+                    <p className="text-xs text-gray-500">Maksimal kasbon tersedia</p>
+                    <p className="text-lg font-bold text-emerald-600">{formatCurrency(row.maxKasbon)}</p>
+                  </div>
+                )}
+              </div>
+              {row.hasKasbon && row.kasbonNotes ? (
+                <p className="text-xs text-gray-500 mt-2">Catatan kasbon: {row.kasbonNotes}</p>
+              ) : null}
+            </div>
+          ))}
         </div>
       </div>
 
