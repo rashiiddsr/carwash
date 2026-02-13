@@ -147,23 +147,3 @@ CREATE TABLE IF NOT EXISTS points (
 
 CREATE INDEX idx_points_customer ON points (customer_id);
 CREATE INDEX idx_points_expires ON points (expires_at);
-
-CREATE TABLE IF NOT EXISTS expenses (
-  id CHAR(36) NOT NULL PRIMARY KEY,
-  expense_code VARCHAR(40) NOT NULL,
-  expense_date DATE NOT NULL,
-  amount DECIMAL(12,2) NOT NULL,
-  category ENUM('KASBON', 'OPERASIONAL', 'LAINNYA') NOT NULL,
-  notes TEXT NOT NULL,
-  employee_id CHAR(36) NULL,
-  created_by CHAR(36) NOT NULL,
-  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  CONSTRAINT fk_expenses_employee FOREIGN KEY (employee_id) REFERENCES users(id) ON DELETE SET NULL,
-  CONSTRAINT fk_expenses_created_by FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE RESTRICT
-);
-
-CREATE UNIQUE INDEX idx_expenses_expense_code ON expenses (expense_code);
-CREATE INDEX idx_expenses_date ON expenses (expense_date);
-CREATE INDEX idx_expenses_category ON expenses (category);
-CREATE INDEX idx_expenses_employee ON expenses (employee_id);

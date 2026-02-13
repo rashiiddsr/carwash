@@ -52,22 +52,6 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-
-function getCurrentWeekRange(date = new Date()) {
-  const baseDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  const day = baseDate.getDay();
-  const diffToMonday = day === 0 ? -6 : 1 - day;
-  const start = new Date(baseDate);
-  start.setDate(baseDate.getDate() + diffToMonday);
-  const end = new Date(start);
-  end.setDate(start.getDate() + 6);
-
-  return {
-    startDate: start.toISOString().slice(0, 10),
-    endDate: end.toISOString().slice(0, 10),
-  };
-}
-
 export function AdminDashboard() {
   const today = getTodayDate();
   const todayDate = new Date();
@@ -97,18 +81,6 @@ export function AdminDashboard() {
     queryFn: () => api.memberships.getAll({ includeExpired: true }),
   });
 
-  const { startDate: weekStartDate, endDate: weekEndDate } = getCurrentWeekRange(todayDate);
-
-  const { data: employees = [] } = useQuery({
-    queryKey: ['users', 'dashboard', 'KARYAWAN'],
-    queryFn: () => api.users.getAll('KARYAWAN'),
-  });
-
-  const { data: weeklyKasbon = [] } = useQuery({
-    queryKey: ['expenses', 'dashboard', 'weekly-kasbon', weekStartDate, weekEndDate],
-    queryFn: () => api.expenses.getAll({ startDate: weekStartDate, endDate: weekEndDate, category: 'KASBON' }),
-  });
-
   const totalTransactions = transactions.length;
   const omzetCuciHarian = transactions.reduce((sum, t) => sum + toSafeNumber(t.price), 0);
   const membershipHarianList = membershipToday.filter((purchase) => purchase.created_at.slice(0, 10) === today);
@@ -127,29 +99,6 @@ export function AdminDashboard() {
     .filter((entry) => getDaysRemaining(entry.expiresAt, todayDate) <= 30)
     .reduce((sum, entry) => sum + entry.points, 0);
   const upcomingPoints = pointSummary.activeEntries.slice(0, 5);
-
-  const kasbonDashboardRows = employees.map((employee) => {
-    const weeklyOmzet = allTransactions
-      .filter((transaction) =>
-        transaction.employee_id === employee.id
-        && transaction.trx_date >= weekStartDate
-        && transaction.trx_date <= weekEndDate
-      )
-      .reduce((sum, transaction) => sum + toSafeNumber(transaction.price), 0);
-
-    const kasbonEntry = weeklyKasbon.find((expense) => expense.employee_id === employee.id);
-    const maxKasbon = weeklyOmzet * 0.3;
-
-    return {
-      employee,
-      weeklyOmzet,
-      maxKasbon,
-      hasKasbon: Boolean(kasbonEntry),
-      kasbonAmount: toSafeNumber(kasbonEntry?.amount),
-      kasbonNotes: kasbonEntry?.notes || '',
-    };
-  });
-
 
   if (isLoading) {
     return (
@@ -301,42 +250,6 @@ export function AdminDashboard() {
               </div>
             </div>
           )}
-        </div>
-      </div>
-
-
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-        <div className="p-6 border-b border-gray-100">
-          <h2 className="text-lg font-semibold text-gray-900">Batas Kasbon Minggu Ini (30%)</h2>
-          <p className="text-sm text-gray-600 mt-1">Periode {weekStartDate} s/d {weekEndDate}</p>
-        </div>
-        <div className="p-6 space-y-3">
-          {kasbonDashboardRows.length === 0 ? (
-            <p className="text-sm text-gray-500">Belum ada data karyawan.</p>
-          ) : kasbonDashboardRows.map((row) => (
-            <div key={row.employee.id} className="border border-gray-100 rounded-lg p-4">
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-                <div>
-                  <p className="font-semibold text-gray-900">{row.employee.name}</p>
-                  <p className="text-sm text-gray-600">Omzet cuci minggu ini: {formatCurrency(row.weeklyOmzet)}</p>
-                </div>
-                {row.hasKasbon ? (
-                  <div className="text-sm text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
-                    Sudah kasbon {formatCurrency(row.kasbonAmount)} minggu ini.
-                    Gaji mingguan dipotong kasbon.
-                  </div>
-                ) : (
-                  <div className="text-right">
-                    <p className="text-xs text-gray-500">Maksimal kasbon tersedia</p>
-                    <p className="text-lg font-bold text-emerald-600">{formatCurrency(row.maxKasbon)}</p>
-                  </div>
-                )}
-              </div>
-              {row.hasKasbon && row.kasbonNotes ? (
-                <p className="text-xs text-gray-500 mt-2">Catatan kasbon: {row.kasbonNotes}</p>
-              ) : null}
-            </div>
-          ))}
         </div>
       </div>
 
