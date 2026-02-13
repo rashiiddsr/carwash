@@ -11,7 +11,7 @@ import {
   MEMBERSHIP_TIERS,
   MembershipTierKey,
 } from '../../lib/membership';
-import { formatCurrency, formatDate } from '../../lib/utils';
+import { formatCurrency, formatDate, getTodayDate, toSafeNumber } from '../../lib/utils';
 import { useToast } from '../../hooks/useToast';
 import { Modal } from '../../components/ui/Modal';
 import { printMembershipReceipt } from '../../lib/receipt';
@@ -32,6 +32,7 @@ export function PembelianMember() {
   const queryClient = useQueryClient();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [customerFilter, setCustomerFilter] = useState('');
+  const [selectedDate, setSelectedDate] = useState(getTodayDate());
 
   const { data: customers = [] } = useQuery({
     queryKey: ['users', 'customers'],
@@ -56,6 +57,16 @@ export function PembelianMember() {
     queryKey: ['company-profile'],
     queryFn: () => api.company.get(),
   });
+
+  const filteredPurchases = useMemo(
+    () => purchases.filter((purchase) => purchase.created_at.slice(0, 10) === selectedDate),
+    [purchases, selectedDate]
+  );
+
+  const totalOmzetMembership = filteredPurchases.reduce(
+    (sum, purchase) => sum + toSafeNumber(purchase.total_price),
+    0
+  );
 
   const {
     register,
@@ -226,20 +237,41 @@ export function PembelianMember() {
         </button>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-        <label className="block text-sm font-medium text-gray-700 mb-2">Filter Customer</label>
-        <select
-          value={customerFilter}
-          onChange={(event) => setCustomerFilter(event.target.value)}
-          className="w-full md:w-96 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-        >
-          <option value="">Semua customer</option>
-          {customers.map((customer) => (
-            <option key={customer.id} value={customer.id}>
-              {customer.name} - {customer.phone}
-            </option>
-          ))}
-        </select>
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Filter Customer</label>
+            <select
+              value={customerFilter}
+              onChange={(event) => setCustomerFilter(event.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+            >
+              <option value="">Semua customer</option>
+              {customers.map((customer) => (
+                <option key={customer.id} value={customer.id}>
+                  {customer.name} - {customer.phone}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Filter Tanggal</label>
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(event) => setSelectedDate(event.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+            />
+          </div>
+        </div>
+
+        <div className="bg-emerald-50 border border-emerald-100 rounded-lg px-4 py-3 flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-emerald-700">Omzet Membership ({selectedDate})</p>
+            <p className="text-xs text-emerald-600">{filteredPurchases.length} pembelian</p>
+          </div>
+          <p className="text-2xl font-bold text-emerald-700">{formatCurrency(totalOmzetMembership)}</p>
+        </div>
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100">
@@ -252,7 +284,7 @@ export function PembelianMember() {
             <div className="p-10 text-center">
               <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto" />
             </div>
-          ) : purchases.length === 0 ? (
+          ) : filteredPurchases.length === 0 ? (
             <div className="p-10 text-center text-gray-600">Belum ada histori pembelian membership.</div>
           ) : (
             <table className="w-full">
@@ -269,7 +301,7 @@ export function PembelianMember() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {purchases.map((purchase) => {
+                {filteredPurchases.map((purchase) => {
                   const vehicle = vehicleMap.get(purchase.vehicle_id);
                   const customer = vehicle ? customerMap.get(vehicle.customer_id) : undefined;
                   return (

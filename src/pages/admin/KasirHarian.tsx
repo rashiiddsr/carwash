@@ -325,6 +325,8 @@ export function KasirHarian() {
     }
   };
 
+  const totalOmzetHarian = transactions.reduce((sum, transaction) => sum + transaction.price, 0);
+
   return (
     <div className="space-y-6">
       {ToastComponent}
@@ -343,10 +345,17 @@ export function KasirHarian() {
         </button>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-        <div className="flex items-center gap-2 mb-4">
-          <Filter className="w-5 h-5 text-gray-600" />
-          <h3 className="font-semibold text-gray-900">Filter</h3>
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-4">
+        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+          <div className="flex items-center gap-2">
+            <Filter className="w-5 h-5 text-gray-600" />
+            <h3 className="font-semibold text-gray-900">Filter</h3>
+          </div>
+          <div className="bg-emerald-50 border border-emerald-100 rounded-lg px-4 py-3 text-right">
+            <p className="text-xs text-emerald-700">Total Omzet ({selectedDate})</p>
+            <p className="text-xl font-bold text-emerald-700">{formatCurrency(totalOmzetHarian)}</p>
+            <p className="text-xs text-emerald-600 mt-1">{transactions.length} transaksi</p>
+          </div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div>

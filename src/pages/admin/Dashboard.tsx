@@ -66,8 +66,29 @@ export function AdminDashboard() {
     queryFn: () => api.points.getAll(),
   });
 
+  const { data: membershipToday = [] } = useQuery({
+    queryKey: ['memberships', 'dashboard', 'today'],
+    queryFn: () => api.memberships.getAll({ includeExpired: true }),
+  });
+
+  const { data: allTransactions = [] } = useQuery({
+    queryKey: ['transactions', 'dashboard', 'all'],
+    queryFn: () => api.transactions.getAll(),
+  });
+
+  const { data: allMemberships = [] } = useQuery({
+    queryKey: ['memberships', 'dashboard', 'all'],
+    queryFn: () => api.memberships.getAll({ includeExpired: true }),
+  });
+
   const totalTransactions = transactions.length;
-  const totalRevenue = transactions.reduce((sum, t) => sum + toSafeNumber(t.price), 0);
+  const omzetCuciHarian = transactions.reduce((sum, t) => sum + toSafeNumber(t.price), 0);
+  const membershipHarianList = membershipToday.filter((purchase) => purchase.created_at.slice(0, 10) === today);
+  const omzetMembershipHarian = membershipHarianList.reduce((sum, purchase) => sum + toSafeNumber(purchase.total_price), 0);
+  const totalRevenue = omzetCuciHarian + omzetMembershipHarian;
+  const omzetCuciAkumulatif = allTransactions.reduce((sum, transaction) => sum + toSafeNumber(transaction.price), 0);
+  const omzetMembershipAkumulatif = allMemberships.reduce((sum, purchase) => sum + toSafeNumber(purchase.total_price), 0);
+  const omzetAkumulatif = omzetCuciAkumulatif + omzetMembershipAkumulatif;
   const queuedCount = transactions.filter((t) => t.status === 'QUEUED').length;
   const washingCount = transactions.filter((t) => t.status === 'WASHING').length;
   const doneCount = transactions.filter((t) => t.status === 'DONE').length;
@@ -106,6 +127,24 @@ export function AdminDashboard() {
           value={formatCurrency(totalRevenue)}
           icon={<DollarSign className="w-6 h-6 text-green-600" />}
           color="bg-green-50"
+        />
+        <StatCard
+          title="Omzet Cuci Hari Ini"
+          value={formatCurrency(omzetCuciHarian)}
+          icon={<Droplets className="w-6 h-6 text-cyan-600" />}
+          color="bg-cyan-50"
+        />
+        <StatCard
+          title="Omzet Membership Hari Ini"
+          value={formatCurrency(omzetMembershipHarian)}
+          icon={<DollarSign className="w-6 h-6 text-violet-600" />}
+          color="bg-violet-50"
+        />
+        <StatCard
+          title="Akumulatif Omzet Keseluruhan"
+          value={formatCurrency(omzetAkumulatif)}
+          icon={<DollarSign className="w-6 h-6 text-emerald-600" />}
+          color="bg-emerald-50"
         />
         <StatCard
           title="Antri"
