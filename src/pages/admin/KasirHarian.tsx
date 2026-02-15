@@ -11,6 +11,7 @@ import { Plus, Edit, Eye, Filter, ShoppingCart, Printer } from 'lucide-react';
 import { Transaction } from '../../types';
 import { printTransactionReceipt } from '../../lib/receipt';
 import { useAuth } from '../../contexts/AuthContext';
+import { PrinterSetupPanel } from '../../components/printer/PrinterSetupPanel';
 
 const transactionSchema = z.object({
   customer_id: z.string().optional().nullable(),
@@ -308,17 +309,20 @@ export function KasirHarian() {
 
   const canEditDoneTransaction = user?.role === 'SUPERADMIN';
 
-  const handlePrintReceipt = (transaction: Transaction) => {
+  const handlePrintReceipt = async (transaction: Transaction) => {
     if (!companyProfile) {
       showError('Profil perusahaan belum termuat. Coba lagi.');
       return;
     }
 
     try {
-      printTransactionReceipt({
+      const result = await printTransactionReceipt({
         transaction,
         company: companyProfile,
       });
+      if (result.mode === 'native') {
+        showSuccess('Struk dikirim ke printer thermal default.');
+      }
     } catch (error) {
       showError(error instanceof Error ? error.message : 'Gagal membuka struk');
     }
@@ -351,6 +355,9 @@ export function KasirHarian() {
           Tambah Transaksi
         </button>
       </div>
+
+
+      <PrinterSetupPanel onSuccess={showSuccess} onError={showError} />
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-4">
         <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
