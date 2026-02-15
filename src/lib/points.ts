@@ -14,6 +14,21 @@ export type PointLedgerEntry = {
 
 const getMonthKey = (date: Date) => `${date.getFullYear()}-${date.getMonth()}`;
 
+const parseDateOnlyLocal = (value: string) => {
+  if (!value) {
+    return new Date(NaN);
+  }
+
+  if (value.includes('T')) {
+    return new Date(value);
+  }
+
+  return new Date(`${value}T00:00:00`);
+};
+
+const endOfDayLocal = (date: Date) =>
+  new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59, 999);
+
 export const addDays = (date: Date, days: number) => {
   const result = new Date(date);
   result.setDate(result.getDate() + days);
@@ -21,7 +36,7 @@ export const addDays = (date: Date, days: number) => {
 };
 
 export const getDaysRemaining = (expiresAt: Date, now = new Date()) =>
-  Math.ceil((expiresAt.getTime() - now.getTime()) / MS_PER_DAY);
+  Math.ceil((endOfDayLocal(expiresAt).getTime() - now.getTime()) / MS_PER_DAY);
 
 const getMonthEnd = (date: Date) => new Date(date.getFullYear(), date.getMonth() + 1, 0);
 
@@ -29,15 +44,15 @@ export const buildPointEntries = (entries: ApiPointEntry[]): PointLedgerEntry[] 
   entries
     .map((entry) => ({
       id: entry.id,
-      earnedAt: new Date(entry.earned_at),
-      expiresAt: new Date(entry.expires_at),
+      earnedAt: parseDateOnlyLocal(entry.earned_at),
+      expiresAt: parseDateOnlyLocal(entry.expires_at),
       points: entry.points,
       customerName: entry.customer?.name ?? 'Customer',
     }))
     .sort((a, b) => a.expiresAt.getTime() - b.expiresAt.getTime());
 
 export const getActivePointEntries = (entries: ApiPointEntry[], now = new Date()) =>
-  buildPointEntries(entries).filter((entry) => entry.expiresAt.getTime() >= now.getTime());
+  buildPointEntries(entries).filter((entry) => endOfDayLocal(entry.expiresAt).getTime() >= now.getTime());
 
 export const calculatePointSummary = (entries: ApiPointEntry[], now = new Date()) => {
   const activeEntries = getActivePointEntries(entries, now);
