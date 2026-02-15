@@ -15,6 +15,7 @@ import { formatCurrency, formatDate, getTodayDate, toSafeNumber } from '../../li
 import { useToast } from '../../hooks/useToast';
 import { Modal } from '../../components/ui/Modal';
 import { printMembershipReceipt } from '../../lib/receipt';
+import { PrinterSetupPanel } from '../../components/printer/PrinterSetupPanel';
 
 const formSchema = z.object({
   customerId: z.string().min(1, 'Customer wajib dipilih'),
@@ -203,7 +204,7 @@ export function PembelianMember() {
     [customers]
   );
 
-  const handlePrintReceipt = (purchase: (typeof purchases)[number]) => {
+  const handlePrintReceipt = async (purchase: (typeof purchases)[number]) => {
     if (!companyProfile) {
       showError('Profil perusahaan belum tersedia.');
       return;
@@ -213,12 +214,15 @@ export function PembelianMember() {
     const customer = vehicle ? customerMap.get(vehicle.customer_id) : undefined;
 
     try {
-      printMembershipReceipt({
+      const result = await printMembershipReceipt({
         membership: purchase,
         company: companyProfile,
         vehicle,
         customerName: customer?.name,
       });
+      if (result.mode === 'native') {
+        showSuccess('Struk membership dikirim ke printer thermal default.');
+      }
     } catch (error) {
       showError(error instanceof Error ? error.message : 'Gagal mencetak struk membership');
     }
@@ -242,6 +246,8 @@ export function PembelianMember() {
           Tambah Pembelian
         </button>
       </div>
+
+      <PrinterSetupPanel onSuccess={showSuccess} onError={showError} />
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

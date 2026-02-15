@@ -176,6 +176,41 @@ Checklist agar tombol **Install app** muncul di Chrome:
 Jika semua valid, Chrome akan mengizinkan install sebagai aplikasi standalone,
 bukan sekadar shortcut browser.
 
+
+## Cetak ke Printer Thermal Bluetooth (58mm) di HP
+
+PWA membantu app terasa seperti native, tetapi **PWA/web murni tidak bisa stabil seperti aplikasi POS native** untuk memilih printer Bluetooth Classic (SPP) dan mencetak langsung ESC/POS.
+
+Kenapa:
+
+- Kode frontend saat ini memakai `window.print()` (via iframe/popup), jadi alurnya masih lewat dialog print browser.
+- Browser mobile umumnya tidak memberi akses penuh ke Bluetooth Classic RFCOMM/SPP yang dipakai banyak printer thermal 58mm.
+- Web Bluetooth di Chrome Android hanya cocok untuk perangkat BLE tertentu dan tetap tidak sefleksibel SDK native printer.
+
+### Opsi implementasi yang disarankan
+
+1. **Paling direkomendasikan: bungkus jadi aplikasi Android (Capacitor/Cordova/React Native)**
+   - UI tetap React.
+   - Tambahkan plugin native Bluetooth/ESC-POS untuk scan, pairing, simpan printer default, dan print raw bytes.
+   - Pengalaman pengguna jadi mirip aplikasi kasir (sekali pilih printer, lalu sekali klik cetak).
+
+2. **Alternatif: gunakan printer jaringan (LAN/Wi‑Fi) + print service lokal**
+   - HP kirim data struk ke backend/service lokal (mis. via HTTP/WebSocket).
+   - Service yang dekat printer yang mengeksekusi ESC/POS ke printer.
+   - Cocok bila ada banyak device kasir dan printer berbagi jaringan.
+
+3. **Tetap PWA murni (opsi minimum)**
+   - Lanjutkan `window.print()` dan user pilih printer manual di dialog sistem.
+   - Praktis untuk awal, tetapi belum “seamless POS” karena masih bergantung browser dan dialog print.
+
+### Rekomendasi teknis struk 58mm
+
+- Tetap siapkan template 58mm (sudah ada), lalu sediakan juga generator command ESC/POS (text, align, bold, cut).
+- Simpan `printer_id`/MAC printer pilihan per user/device agar tidak pilih ulang terus.
+- Sediakan halaman “Tes Print” untuk validasi koneksi & format.
+- Tambahkan fallback: jika print native gagal, tampilkan opsi `window.print()` agar operasional tetap jalan.
+
+
 ## Akun Default
 
 ### Admin

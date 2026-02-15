@@ -1,6 +1,11 @@
 import { CompanyProfile, Membership, Transaction, Vehicle } from '../types';
 import { formatCurrency } from './utils';
 import { getMembershipTier } from './membership';
+import {
+  buildEscPosMembershipPayload,
+  buildEscPosTransactionPayload,
+  printToSavedThermalPrinter,
+} from './printer';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 const resolveLogoUrl = (logoPath: string | null | undefined) => {
@@ -192,7 +197,7 @@ const formatReceiptDateTime = (rawDate: string) => {
   }).replace('.', ':');
 };
 
-export const printTransactionReceipt = ({
+export const printTransactionReceipt = async ({
   transaction,
   company,
 }: {
@@ -220,10 +225,27 @@ export const printTransactionReceipt = ({
     <div class="center small">Terima kasih sudah menggunakan layanan kami.</div>
   `;
 
-  openReceiptWindow(`Struk ${transaction.transaction_code}`, body);
+  const printedViaNative = await printToSavedThermalPrinter(
+    buildEscPosTransactionPayload({
+      companyName: company.company_name || 'Carwash POS',
+      phone: company.phone || '-',
+      trxCode: transaction.transaction_code,
+      dateTime: createdAt,
+      category: transaction.category?.name || '-',
+      vehicle: transaction.car_brand,
+      plateNumber: transaction.plate_number,
+      total: formatCurrency(transaction.price),
+    })
+  ).catch(() => false);
+
+  if (!printedViaNative) {
+    openReceiptWindow(`Struk ${transaction.transaction_code}`, body);
+  }
+
+  return { mode: printedViaNative ? 'native' : 'browser' } as const;
 };
 
-export const printMembershipReceipt = ({
+export const printMembershipReceipt = async ({
   membership,
   company,
   vehicle,
@@ -254,5 +276,21 @@ export const printMembershipReceipt = ({
     <div class="center small">Struk membership premium.</div>
   `;
 
-  openReceiptWindow(`Struk ${membership.transaction_code}`, body);
+  const printedViaNative = await printToSavedThermalPrinter(
+    buildEscPosMembershipPayload({
+      companyName: company.company_name || 'Carwash POS',
+      phone: company.phone || '-',
+      trxCode: membership.transaction_code,
+      dateTime: createdAt,
+      tier: tier.label,
+      duration: `${membership.duration_months} bulan`,
+      total: formatCurrency(membership.total_price || 0),
+    })
+  ).catch(() => false);
+
+  if (!printedViaNative) {
+    openReceiptWindow(`Struk ${membership.transaction_code}`, body);
+  }
+
+  return { mode: printedViaNative ? 'native' : 'browser' } as const;
 };
