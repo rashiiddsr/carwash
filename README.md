@@ -114,6 +114,68 @@ npm run dev
 npm run build
 ```
 
+## Deploy di cPanel (mengatasi 404 saat refresh route seperti `/login`)
+
+Karena frontend menggunakan React Router (`BrowserRouter`), route seperti `/login`,
+`/admin/dashboard`, dll adalah route SPA (client-side). Di server Apache/cPanel,
+request refresh ke route tersebut harus diarahkan kembali ke `index.html`.
+
+1. Jalankan build frontend:
+
+```bash
+npm run build
+```
+
+2. Upload isi folder `dist/` ke `public_html/` (atau document root domain/subdomain).
+
+3. Buat/ubah file `.htaccess` di document root, isi dengan:
+
+```apache
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # Jangan rewrite jika file/folder fisik memang ada
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # Semua route SPA diarahkan ke index.html
+  RewriteRule ^ index.html [L]
+</IfModule>
+```
+
+4. Pastikan modul Apache `mod_rewrite` aktif di hosting.
+
+Dengan konfigurasi ini, akses langsung atau refresh di URL seperti
+`https://carwash.royalgen.co.id/login` tidak lagi 404.
+
+## Install sebagai Aplikasi (PWA) di Chrome
+
+Agar website tidak hanya menjadi pintasan, aplikasi membutuhkan komponen PWA:
+`manifest.webmanifest` + `service worker` + akses via HTTPS.
+
+Project ini sudah menyiapkan file berikut:
+
+- `public/manifest.webmanifest`
+- `public/sw.js`
+- ikon aplikasi berbasis SVG di `public/icons/icon-app.svg` (tanpa file biner tambahan, aman untuk alur PR Codex)
+
+Checklist agar tombol **Install app** muncul di Chrome:
+
+1. Deploy build terbaru (`npm run build`) dan upload ulang folder `dist/`.
+2. Pastikan domain memakai HTTPS valid (bukan self-signed).
+3. Pastikan file berikut bisa diakses langsung:
+   - `https://domain-anda/manifest.webmanifest`
+   - `https://domain-anda/sw.js`
+4. Buka Chrome > DevTools > **Application**:
+   - Manifest terbaca
+   - Service Worker status **activated and running**
+5. Jika sebelumnya sudah pernah buka site lama, lakukan hard refresh / clear site data.
+
+Jika semua valid, Chrome akan mengizinkan install sebagai aplikasi standalone,
+bukan sekadar shortcut browser.
+
 ## Akun Default
 
 ### Admin
