@@ -67,29 +67,6 @@ const addDays = (date, days) => {
   return result;
 };
 
-const APP_TIME_ZONE = 'Asia/Jakarta';
-
-const formatDateInTimeZone = (value, timeZone = APP_TIME_ZONE) => {
-  const date = value instanceof Date ? value : new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    throw new Error('Invalid date value');
-  }
-
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).formatToParts(date);
-
-  const year = parts.find((part) => part.type === 'year')?.value;
-  const month = parts.find((part) => part.type === 'month')?.value;
-  const day = parts.find((part) => part.type === 'day')?.value;
-
-  return `${year}-${month}-${day}`;
-};
-
 const sanitizeUser = (row) => ({
   id: row.id,
   name: row.name,
@@ -255,7 +232,7 @@ const calculateWeeklyWageForEmployee = async ({ employeeId, startDate, endDate }
 
 
 const createTransactionCode = (prefix) => {
-  const datePart = formatDateInTimeZone(new Date()).replace(/-/g, '');
+  const datePart = new Date().toISOString().slice(0, 10).replace(/-/g, '');
   const randomPart = Math.random().toString(36).slice(2, 8).toUpperCase();
   return `${prefix}-${datePart}-${randomPart}`;
 };
@@ -586,8 +563,8 @@ const getWeekRange = (rawDate) => {
   end.setDate(start.getDate() + 6);
 
   return {
-    startDate: formatDateInTimeZone(start),
-    endDate: formatDateInTimeZone(end),
+    startDate: start.toISOString().slice(0, 10),
+    endDate: end.toISOString().slice(0, 10),
   };
 };
 
@@ -1063,9 +1040,7 @@ app.get('/memberships', asyncHandler(async (req, res) => {
   }
 
   if (!skipActiveFilter) {
-    const today = formatDateInTimeZone(new Date());
-    query += params.length ? ' AND m.ends_at >= ?' : ' WHERE m.ends_at >= ?';
-    params.push(today);
+    query += params.length ? ' AND m.ends_at >= CURDATE()' : ' WHERE m.ends_at >= CURDATE()';
   }
 
   query += ' ORDER BY m.starts_at DESC';
@@ -1148,8 +1123,8 @@ app.post('/memberships', asyncHandler(async (req, res) => {
   const resolvedExtraVehicles = tier === 'PLATINUM_VIP' ? parsedExtraVehicleIds.length : 0;
   const membershipBasePrice = MEMBERSHIP_BASE_PRICE[tier] ?? 0;
   const membershipTotalPrice = (membershipBasePrice + (tier === 'PLATINUM_VIP' ? resolvedExtraVehicles * EXTRA_VEHICLE_PLATINUM_FEE : 0)) * Number(duration_months);
-  const startDateString = formatDateInTimeZone(startDate);
-  const endDateString = formatDateInTimeZone(endDate);
+  const startDateString = startDate.toISOString().slice(0, 10);
+  const endDateString = endDate.toISOString().slice(0, 10);
   const affectedVehicleIds = [vehicle_id, ...extraVehicles.map((item) => item.id)];
 
   if (affectedVehicleIds.length > 0) {
@@ -1655,8 +1630,8 @@ app.patch('/transactions/:id/status', asyncHandler(async (req, res) => {
           transaction.customer_id,
           transaction.id,
           points,
-          formatDateInTimeZone(earnedDate),
-          formatDateInTimeZone(expiresDate),
+          earnedDate.toISOString().slice(0, 10),
+          expiresDate.toISOString().slice(0, 10),
         ]
       );
     }
@@ -1736,7 +1711,7 @@ app.post('/expenses', asyncHandler(async (req, res) => {
   }
 
   const { amount, category, notes, employee_id } = req.body;
-  const expenseDate = formatDateInTimeZone(new Date());
+  const expenseDate = new Date().toISOString().slice(0, 10);
 
   if (amount === undefined || !category || !notes) {
     return res.status(400).json({ message: 'amount, category, dan notes wajib diisi' });
@@ -1845,7 +1820,7 @@ app.get('/expenses/weekly-kasbon-summary', asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'employeeId diperlukan' });
   }
 
-  const { startDate, endDate } = getWeekRange(formatDateInTimeZone(new Date()));
+  const { startDate, endDate } = getWeekRange(new Date().toISOString().slice(0, 10));
 
   const weeklyWage = await calculateWeeklyWageForEmployee({
     employeeId: targetEmployeeId,

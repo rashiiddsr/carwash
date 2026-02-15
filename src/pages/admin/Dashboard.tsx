@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../lib/api';
-import { getTodayDate, formatCurrency, formatTime, formatDateISO, toSafeNumber } from '../../lib/utils';
+import { getTodayDate, formatCurrency, formatTime, formatDate, toSafeNumber } from '../../lib/utils';
 import { calculatePointSummary, getDaysRemaining, POINT_EXPIRY_DAYS } from '../../lib/points';
 import {
   DollarSign,
@@ -81,8 +81,8 @@ function getCurrentWeekRange(date = new Date()) {
   end.setDate(start.getDate() + 6);
 
   return {
-    startDate: formatDateISO(start),
-    endDate: formatDateISO(end),
+    startDate: start.toISOString().slice(0, 10),
+    endDate: end.toISOString().slice(0, 10),
   };
 }
 
@@ -282,7 +282,7 @@ export function AdminDashboard() {
                   <p className="text-xs text-slate-600 mb-1">Expired Terdekat</p>
                   <p className="text-sm font-semibold text-slate-700">
                     {pointSummary.nextExpiryDate
-                      ? formatDateISO(pointSummary.nextExpiryDate)
+                      ? formatDate(pointSummary.nextExpiryDate.toISOString())
                       : '-'}
                   </p>
                   {pointSummary.nextExpiryDate && (
@@ -314,13 +314,13 @@ export function AdminDashboard() {
                           </p>
                           <p className="text-xs text-gray-500">
                             {entry.points.toFixed(1).replace('.0', '')} poin · Didapat{' '}
-                            {formatDateISO(entry.earnedAt)}
+                            {formatDate(entry.earnedAt.toISOString())}
                           </p>
                         </div>
                         <div className="text-right">
                           <p className="text-xs text-gray-500">Expired</p>
                           <p className="text-sm font-semibold text-rose-600">
-                            {formatDateISO(entry.expiresAt)}
+                            {formatDate(entry.expiresAt.toISOString())}
                           </p>
                           <p className="text-xs text-gray-500">
                             {getDaysRemaining(entry.expiresAt, todayDate)} hari lagi
