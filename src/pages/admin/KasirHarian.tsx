@@ -11,7 +11,6 @@ import { Plus, Edit, Eye, Filter, ShoppingCart, Printer } from 'lucide-react';
 import { Transaction } from '../../types';
 import { printTransactionReceipt } from '../../lib/receipt';
 import { useAuth } from '../../contexts/AuthContext';
-import { PrinterSetupPanel } from '../../components/printer/PrinterSetupPanel';
 
 const transactionSchema = z.object({
   customer_id: z.string().optional().nullable(),
@@ -357,8 +356,6 @@ export function KasirHarian() {
       </div>
 
 
-      <PrinterSetupPanel onSuccess={showSuccess} onError={showError} />
-
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-4">
         <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
           <div className="flex items-center gap-2">
@@ -542,15 +539,13 @@ export function KasirHarian() {
                         >
                           <Edit className="w-4 h-4" />
                         </button>
-                        {transaction.status === 'DONE' && (
-                          <button
-                            onClick={() => handlePrintReceipt(transaction)}
-                            className="p-1 hover:bg-green-50 text-green-600 rounded transition"
-                            title="Cetak struk 58mm"
-                          >
-                            <Printer className="w-4 h-4" />
-                          </button>
-                        )}
+                        <button
+                          onClick={() => handlePrintReceipt(transaction)}
+                          className="p-1 hover:bg-green-50 text-green-600 rounded transition"
+                          title="Cetak struk 58mm"
+                        >
+                          <Printer className="w-4 h-4" />
+                        </button>
                       </div>
                     </td>
                   </tr>

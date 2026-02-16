@@ -13,6 +13,7 @@ import { Customer } from './pages/admin/Customer';
 import { Laporan } from './pages/admin/Laporan';
 import { PembelianMember } from './pages/admin/PembelianMember';
 import { Pengeluaran } from './pages/admin/Pengeluaran';
+import { PrinterThermal } from './pages/admin/PrinterThermal';
 import { AdminKasir } from './pages/superadmin/AdminKasir';
 import { Perusahaan } from './pages/superadmin/Perusahaan';
 import { KaryawanDashboard } from './pages/karyawan/Dashboard';
@@ -138,6 +139,17 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
+
+            <Route
+              path="/superadmin/printer"
+              element={
+                <ProtectedRoute allowedRoles={['SUPERADMIN']}>
+                  <Layout>
+                    <PrinterThermal />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="/superadmin/laporan"
               element={
@@ -235,6 +247,17 @@ export default function App() {
                 <ProtectedRoute allowedRoles={['SUPERADMIN', 'ADMIN']}>
                   <Layout>
                     <Customer />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/admin/printer"
+              element={
+                <ProtectedRoute allowedRoles={['SUPERADMIN', 'ADMIN']}>
+                  <Layout>
+                    <PrinterThermal />
                   </Layout>
                 </ProtectedRoute>
               }
