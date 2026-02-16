@@ -16,6 +16,7 @@ import {
   Menu,
   X,
   ChevronDown,
+  Printer,
 } from 'lucide-react';
 import { UserRole } from '../types';
 import { BrandLogo } from './BrandLogo';
@@ -75,6 +76,12 @@ const menuItems: MenuItem[] = [
     path: '/perusahaan',
     icon: <Tags className="w-5 h-5" />,
     roles: ['SUPERADMIN'],
+  },
+  {
+    label: 'Printer Thermal 58mm',
+    path: '/printer',
+    icon: <Printer className="w-5 h-5" />,
+    roles: ['SUPERADMIN', 'ADMIN'],
   },
   {
     label: 'Laporan Transaksi',
